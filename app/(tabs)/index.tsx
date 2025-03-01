@@ -1,74 +1,84 @@
-import { Image, StyleSheet, Platform } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
+import { Image, StyleSheet, Pressable } from 'react-native';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BreathingTechnique } from '@/constants/techniques';
 import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
+import { useRouter } from 'expo-router';
+import { useTheme } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const { colors } = useTheme();
+
+  // States
+  const [breathingTechnique, setBreathingTechnique] = useState<BreathingTechnique>("Resonant");
+  const [sessionDuration, setSessionDuration] = useState(5);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const savedTechnique = await AsyncStorage.getItem("breathingTechnique") as BreathingTechnique;
+      const savedDuration = await AsyncStorage.getItem("sessionDuration");
+
+      if (savedTechnique) setBreathingTechnique(savedTechnique);
+      if (savedDuration) setSessionDuration(parseInt(savedDuration.replace("min", ""), 10));
+    };
+    loadSettings();
+  }, []);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
+    <ThemedView style={styles.container}>
+      <ThemedView style={styles.textContainer}>
+        <ThemedText type="default" style={{fontSize: 34, lineHeight: 34 }}>Welcome to</ThemedText>
+        <ThemedText type="title">SomaFlow</ThemedText>
+        <ThemedText style={{ textAlign: 'center' }}>Breathing exercises for inner peace and balance</ThemedText>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <Image source={require("@/assets/images/background.png")} style={styles.image} />
+      <Pressable
+        onPress={() => router.push("/breathing")}
+        style={[styles.button, { backgroundColor: colors.primary }]}
+      >
+        <ThemedText type="subtitle" style={{ color: 'white'}}>Go to Breathing</ThemedText>
+        <Feather name="play" size={24} color="white" />
+      </Pressable>
+      <ThemedText>
+        {sessionDuration} minute {breathingTechnique} technique
+      </ThemedText>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  textContainer: {
     alignItems: 'center',
     gap: 8,
+    marginTop: 20,
+    marginHorizontal: 60,
+    marginBottom: -100,
+    backgroundColor: 'transparent',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  image: {
+    width: 400,
+    height: 500,
+    zIndex: 0,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  button: {
+    marginTop: -100,
+    fontSize: 30,
+    padding: 12,
+    paddingHorizontal: 20,
+    borderRadius: 100,
+    flexDirection: 'row',
+    alignContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
-});
+})
