@@ -41,4 +41,4 @@ Make sure your `node.js` is installed and up to date before runnin the following
 
 ## App overview
 
-(YouTube link)[https://youtube.com/shorts/Rl8IK3FAKXk]
+[YouTube link](https://youtube.com/shorts/Rl8IK3FAKXk)
