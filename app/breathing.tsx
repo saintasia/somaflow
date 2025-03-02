@@ -28,7 +28,7 @@ export default function BreathingScreen() {
   const soundRef = useRef<Audio.Sound | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
 
-  // States
+  // states
   const [breathingTechnique, setBreathingTechnique] = useState<BreathingTechnique>("Resonant");
   const [sessionDuration, setSessionDuration] = useState(5);
   const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
@@ -66,7 +66,7 @@ export default function BreathingScreen() {
     }
   };
 
-  // saved settings
+  // load saved settings
   useEffect(() => {
     const loadSettings = async () => {
       const savedTechnique = await AsyncStorage.getItem("breathingTechnique") as BreathingTechnique;
@@ -86,7 +86,10 @@ export default function BreathingScreen() {
 
   // breathing logic
   useEffect(() => {
-    if (!isRunning) return; // only run if session is active
+    if (!isRunning) {
+      progress.stopAnimation(); // stop animation when paused
+      return;
+    }
   
     let i = 0;
     const totalSessionTime = sessionDuration * 60;
@@ -108,7 +111,6 @@ export default function BreathingScreen() {
       useNativeDriver: false,
     }).start(() => {
       if (elapsedTimeLocal >= totalSessionTime) {
-        console.log("Session complete, setting sessionCompleted = true");
         setSessionCompleted(true); // mark session as completed if time lapsed
       }
     });
@@ -147,7 +149,6 @@ export default function BreathingScreen() {
         i = (i + 1) % pattern.length;
 
         if (elapsedTimeLocal >= totalSessionTime) {
-          console.log("Marking session as completed in breathing cycle");
           setSessionCompleted(true);
           return;
         }
@@ -161,6 +162,7 @@ export default function BreathingScreen() {
       cycleActive = false;
       lottieRef.current?.reset();
       Vibration.cancel();
+      progress.stopAnimation();
     };
   }, [breathingTechnique, isVibrationEnabled, isRunning, isSoundEnabled]);
 

@@ -1,13 +1,11 @@
-import { StyleSheet, Pressable, Switch } from "react-native";
+import { StyleSheet, Pressable } from "react-native";
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { useColorScheme } from "@/hooks/useColorScheme";
 import { useTheme } from "@react-navigation/native";
 
 export default function SettingsScreen() {
-  const colorScheme = useColorScheme();
   const { colors } = useTheme();
 
   // State for settings
@@ -15,7 +13,6 @@ export default function SettingsScreen() {
   const [sessionDuration, setSessionDuration] = useState("10min");
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
-  const [isDarkModeEnabled, setIsDarkModeEnabled] = useState(colorScheme === "dark");
 
   // Load saved preferences on app start
   useEffect(() => {
@@ -24,13 +21,11 @@ export default function SettingsScreen() {
       const savedDuration = await AsyncStorage.getItem("sessionDuration");
       const savedSound = await AsyncStorage.getItem("isSoundEnabled");
       const savedVibration = await AsyncStorage.getItem("isVibrationEnabled");
-      const savedDarkMode = await AsyncStorage.getItem("isDarkModeEnabled");
 
       if (savedTechnique) setBreathingTechnique(savedTechnique);
       if (savedDuration) setSessionDuration(savedDuration);
       if (savedSound) setIsSoundEnabled(JSON.parse(savedSound));
       if (savedVibration) setIsVibrationEnabled(JSON.parse(savedVibration));
-      if (savedDarkMode) setIsDarkModeEnabled(JSON.parse(savedDarkMode));
     };
     loadSettings();
   }, []);
@@ -70,7 +65,7 @@ export default function SettingsScreen() {
           <ThemedText type="subtitle">Default duration</ThemedText>
           <ThemedText>Set up your default session length</ThemedText>
           <ThemedView style={styles.pillContainer}>
-            {["1min", "2min", "5min", "10min", "15min", "20min"].map((option) => (
+            {["2min", "5min", "10min", "15min", "20min"].map((option) => (
               <Pressable
                 key={option}
                 onPress={() => {
@@ -90,35 +85,34 @@ export default function SettingsScreen() {
         {/* Other Settings */}
         <ThemedView style={{ ...styles.settingRow, backgroundColor: colors.card }}>
           <ThemedText>Sound Guidance</ThemedText>
-          <Switch
-            value={isSoundEnabled}
-            onValueChange={(value) => {
-              setIsSoundEnabled(value);
-              saveSetting("isSoundEnabled", value);
+          <Pressable
+            onPress={() => {
+              setIsSoundEnabled(!isSoundEnabled);
+              saveSetting("isSoundEnabled", !isSoundEnabled);
             }}
-          />
+            style={[styles.toggleButton, { backgroundColor: isSoundEnabled ? colors.primary : colors.border }]}
+            testID="soundToggle"
+          >
+            <ThemedText lightColor={isSoundEnabled ? "white" : colors.text}>
+              {isSoundEnabled ? "On" : "Off"}
+            </ThemedText>
+          </Pressable>
         </ThemedView>
 
         <ThemedView style={{ ...styles.settingRow, backgroundColor: colors.card }}>
           <ThemedText>Phone Vibration</ThemedText>
-          <Switch
-            value={isVibrationEnabled}
-            onValueChange={(value) => {
-              setIsVibrationEnabled(value);
-              saveSetting("isVibrationEnabled", value);
+          <Pressable
+            onPress={() => {
+              setIsVibrationEnabled(!isVibrationEnabled);
+              saveSetting("isVibrationEnabled", !isVibrationEnabled);
             }}
-          />
-        </ThemedView>
-
-        <ThemedView style={{ ...styles.settingRow, backgroundColor: colors.card }}>
-          <ThemedText>Dark Mode</ThemedText>
-          <Switch
-            value={isDarkModeEnabled}
-            onValueChange={(value) => {
-              setIsDarkModeEnabled(value);
-              saveSetting("isDarkModeEnabled", value);
-            }}
-          />
+            style={[styles.toggleButton, { backgroundColor: isVibrationEnabled ? colors.primary : colors.border }]}
+            testID="vibrationToggle"
+          >
+            <ThemedText lightColor={isVibrationEnabled ? "white" : colors.text}>
+              {isVibrationEnabled ? "On" : "Off"}
+            </ThemedText>
+          </Pressable>
         </ThemedView>
       </ThemedView>
     </ThemedView>
@@ -128,6 +122,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
+    paddingTop: 30,
     marginTop: 40,
     flexDirection: "column",
     gap: 10,
@@ -158,5 +153,10 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     marginVertical: 5,
     marginRight: 5,
+  },
+  toggleButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
   },
 });

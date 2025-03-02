@@ -1,5 +1,5 @@
 import { Image, StyleSheet, Pressable } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BreathingTechnique } from '@/constants/techniques';
 import { ThemedView } from '@/components/ThemedView';
@@ -7,30 +7,36 @@ import { ThemedText } from '@/components/ThemedText';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
 
-  // States
+  // states
   const [breathingTechnique, setBreathingTechnique] = useState<BreathingTechnique>("Resonant");
   const [sessionDuration, setSessionDuration] = useState(5);
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      const savedTechnique = await AsyncStorage.getItem("breathingTechnique") as BreathingTechnique;
-      const savedDuration = await AsyncStorage.getItem("sessionDuration");
+  // load saved settings
+  const loadSettings = async () => {
+    const savedTechnique = await AsyncStorage.getItem("breathingTechnique") as BreathingTechnique;
+    const savedDuration = await AsyncStorage.getItem("sessionDuration");
 
-      if (savedTechnique) setBreathingTechnique(savedTechnique);
-      if (savedDuration) setSessionDuration(parseInt(savedDuration.replace("min", ""), 10));
-    };
-    loadSettings();
-  }, []);
+    if (savedTechnique) setBreathingTechnique(savedTechnique);
+    if (savedDuration) setSessionDuration(parseInt(savedDuration.replace("min", ""), 10));
+  };
+
+  // run loadSettings on focus
+  useFocusEffect(
+    useCallback(() => {
+      loadSettings();
+    }, [])
+  );
 
   return (
     <ThemedView style={styles.container}>
       <ThemedView style={styles.textContainer}>
-        <ThemedText type="default" style={{fontSize: 34, lineHeight: 34 }}>Welcome to</ThemedText>
+        <ThemedText type="default" style={{ fontSize: 34, lineHeight: 34 }}>Welcome to</ThemedText>
         <ThemedText type="title">SomaFlow</ThemedText>
         <ThemedText style={{ textAlign: 'center' }}>Breathing exercises for inner peace and balance</ThemedText>
       </ThemedView>
@@ -39,7 +45,7 @@ export default function HomeScreen() {
         onPress={() => router.push("/breathing")}
         style={[styles.button, { backgroundColor: colors.primary }]}
       >
-        <ThemedText type="subtitle" style={{ color: 'white'}}>Go to Breathing</ThemedText>
+        <ThemedText type="subtitle" style={{ color: 'white' }}>Go to Breathing</ThemedText>
         <Feather name="play" size={24} color="white" />
       </Pressable>
       <ThemedText>
@@ -81,4 +87,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-})
+});

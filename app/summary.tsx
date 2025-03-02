@@ -25,8 +25,6 @@ export default function SummaryScreen() {
         setLastSession(history[0]); // get most recent session
       }
 
-      console.log(history)
-
       const totalSessions = await AsyncStorage.getItem("totalSessions");
       setTotalSessions(totalSessions ? parseInt(totalSessions) : 0);
 

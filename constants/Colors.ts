@@ -6,7 +6,7 @@
 import { LightTheme, DarkTheme } from '@/constants/Theme';
 
 const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const darkerTextColor = '#a9c1c9';
 
 export const Colors = {
   light: {
@@ -20,9 +20,9 @@ export const Colors = {
   dark: {
     text: DarkTheme.colors.text,
     background: DarkTheme.colors.background,
-    tint: DarkTheme.colors.text,
+    tint: DarkTheme.colors.primary,
     icon: DarkTheme.colors.text,
-    tabIconDefault: DarkTheme.colors.primary,
-    tabIconSelected: tintColorDark,
+    tabIconDefault: darkerTextColor,
+    tabIconSelected: DarkTheme.colors.primary,
   },
 };

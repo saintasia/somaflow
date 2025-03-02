@@ -1,8 +1,23 @@
-# Welcome to your Expo app 👋
+# SomaFlow – Guided Breathing App  
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A simple breathing companion to help regulate your nervous system.
 
-## Get started
+---
+
+## Overview
+SomaFlow is a **React Native (Expo) app** that provides **guided breathing exercises** with:  
+- **Smooth animations** for inhale/exhale guidance  
+- **Sound support** for inhale/exhale guidance  
+- **Customizable techniques** (Resonant, 4-7-8, Box Breathing)  
+- **Customizable timing** (from 2-20 minutes)  
+- **Haptic and vibration feedback** for breath synchronization  
+- **Dark mode support**  
+- **Progress tracking for past sessions**  
+
+---
+
+## Installation and set-up
+Make sure your `node.js` is installed and up to date before runnin the following commands.
 
 1. Install dependencies
 
@@ -13,38 +28,17 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 2. Start the app
 
    ```bash
-    npx expo start
+    npm run start
    ```
 
-In the output, you'll find options to open the app in a
+3. Run all tests with coverage
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+    npm run test:all
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+--
 
-## Get a fresh project
+## App overview
 
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+(YouTube link)[https://youtube.com/shorts/Rl8IK3FAKXk]

@@ -6,14 +6,13 @@ import { Colors } from '@/constants/Colors';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].tabIconDefault,
-        headerShown: false, // No top bar on pages with footer nav
+        headerShown: false, // no top bar on pages with footer nav
         tabBarStyle: {
           backgroundColor: Colors[colorScheme ?? 'light'].background,
           height: 64,

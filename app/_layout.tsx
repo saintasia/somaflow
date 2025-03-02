@@ -8,15 +8,15 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
-import { Pressable, TouchableOpacity } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { Pressable } from 'react-native';
+import { Colors } from '@/constants/Colors'
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  const navigation = useNavigation();
+  
 
   const [loaded] = useFonts({
     InclusiveSansMedium: require('../assets/fonts/InclusiveSans-Medium.ttf'),
@@ -61,7 +61,7 @@ export default function RootLayout() {
                 style={{ marginRight: 14 }}
                 hitSlop={40}
               >
-                <Feather name="chevron-left" size={40} color={colorScheme === 'dark' ? '#fff' : '#356e80'} />
+                <Feather name="chevron-left" size={40} color={colorScheme === 'dark' ?  Colors.dark.text : Colors.light.text} />
               </Pressable>
             ),
           }}
@@ -77,7 +77,7 @@ export default function RootLayout() {
                 // same bug as above
                 style={{ marginRight: 14 }}
               >
-                <Feather name="chevron-left" size={26} color={colorScheme === 'dark' ? '#fff' : '#356e80'} />
+                <Feather name="chevron-left" size={40} color={colorScheme === 'dark' ?  Colors.dark.text : Colors.light.text} />
               </Pressable>
             ),
           }}
