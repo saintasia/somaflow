@@ -17,7 +17,7 @@ SomaFlow is a **React Native (Expo) app** that provides **guided breathing exerc
 ---
 
 ## Installation and set-up
-Make sure your `node.js` is installed and up to date before runnin the following commands.
+Make sure your `node.js` is installed and up to date before running the following commands.
 
 1. Install dependencies
 

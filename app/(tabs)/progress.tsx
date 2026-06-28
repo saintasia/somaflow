@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@react-navigation/native";
+import { getSessionsThisWeek } from "../../utils";
 
 const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -29,17 +30,7 @@ export default function ProgressScreen() {
       setSessionHistory(history);
 
       // filter history to include only sessions from this week
-      const startOfWeek = new Date();
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay()); // sunday of this week
-      startOfWeek.setHours(0, 0, 0, 0);
-
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 7); // next sunday
-
-      const weeklySessions = history.filter((session) => {
-        const sessionDate = new Date(session.date);
-        return sessionDate >= startOfWeek && sessionDate < endOfWeek;
-      });
+      const weeklySessions = getSessionsThisWeek(history);
 
       // update completed days
       const completedDaysTracker: { [key: string]: boolean } = {};

@@ -116,22 +116,18 @@ export default function BreathingScreen() {
     });
   
     const runBreathingCycle = async () => {
-      let soundInstance;
-    
       while (cycleActive && elapsedTimeLocal < totalSessionTime) {
         if (!isRunning) return; // pause loop when session is paused
-    
+
         const { phase, duration, animationRange } = pattern[i];
-    
+
         setCurrentPhase(phase);
         lottieRef.current?.play(animationRange[0], animationRange[1]);
-    
-        if (isSoundEnabled) {
-          if (phase === "Inhale") {
-            soundInstance = await playSound("inhale", duration);
-          } else if (phase === "Exhale") {
-            soundInstance = await playSound("exhale", duration);
-          }
+
+        if (phase === "Inhale") {
+          await playSound("inhale", duration);
+        } else if (phase === "Exhale") {
+          await playSound("exhale", duration);
         }
     
         if (isVibrationEnabled && phase !== "Hold in" && phase !== "Hold out") {

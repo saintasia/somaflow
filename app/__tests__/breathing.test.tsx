@@ -1,6 +1,6 @@
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import BreathingScreen from "@/app/breathing";
-import { Vibration } from "react-native";
+import { Vibration, Platform } from "react-native";
 import {Animated} from "react-native";
 
 // mock storage
@@ -53,11 +53,9 @@ jest.mock("@expo/vector-icons", () => ({
   Feather: () => null,
 }));
 
-// mock platform as Android
-jest.mock("react-native/Libraries/Utilities/Platform", () => ({
-  OS: "android",
-  Select: jest.fn(),
-}));
+// force Android so the Vibration branch runs. (Don't mock RN's internal
+// Platform module path — it moves between RN versions; set OS directly.)
+Platform.OS = "android";
 
 test("should start and pause session correctly", async () => {
   const { getByText } = render(<BreathingScreen />);
