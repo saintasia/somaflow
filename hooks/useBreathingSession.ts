@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Platform, Vibration, Animated } from "react-native";
 import LottieView from "lottie-react-native";
 import * as Haptics from "expo-haptics";
-import { Audio } from "expo-av";
+import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import { useRouter } from "expo-router";
 import { techniques, type BreathingTechnique } from "@/constants/techniques";
 import { loadSettings, addSession } from "@/constants/storage";
@@ -26,7 +26,7 @@ const exhaleSounds: Record<number, number> = {
 export function useBreathingSession() {
   const router = useRouter();
   const lottieRef = useRef<LottieView>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const playersRef = useRef<Record<string, AudioPlayer> | null>(null);
   const progress = useRef(new Animated.Value(0)).current;
 
   // remember where the breath cycle was so Continue resumes instead of restarting
@@ -44,33 +44,71 @@ export function useBreathingSession() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [sessionCompleted, setSessionCompleted] = useState(false);
 
-  // sound player
-  const playSound = async (type: "inhale" | "exhale", duration: number) => {
-    if (!isSoundEnabled) return; // don't play if sound is disabled
+  // Create one player per sound file up front. expo-audio loads sources
+  // asynchronously after createAudioPlayer(), so a player created at phase
+  // start begins playing late and drifts out of sync with the animation —
+  // preloaded players start instantly. Players hold native resources and are
+  // not garbage-collected, so remove them on unmount.
+  useEffect(() => {
+    const players: Record<string, AudioPlayer> = {};
+    const createPlayer = (key: string, file: number) => {
+      const player = createAudioPlayer(file);
+      // Park finished clips back at 0. Seeking is async on the native player,
+      // so rewinding at play time would delay the sound behind the animation;
+      // rewinding on finish makes the next play() start instantly. Pause
+      // before seeking — a finished player is still in the "playing" state,
+      // and seeking it without pausing restarts playback in a loop.
+      player.addListener("playbackStatusUpdate", (status) => {
+        if (status.didJustFinish) {
+          player.pause();
+          player.seekTo(0);
+        }
+      });
+      players[key] = player;
+    };
+    Object.entries(inhaleSounds).forEach(([duration, file]) => {
+      createPlayer(`inhale-${duration}`, file);
+    });
+    Object.entries(exhaleSounds).forEach(([duration, file]) => {
+      createPlayer(`exhale-${duration}`, file);
+    });
+    playersRef.current = players;
 
-    const soundFile = type === "inhale" ? inhaleSounds[duration] : exhaleSounds[duration];
+    return () => {
+      Object.values(players).forEach((player) => player.remove());
+      playersRef.current = null;
+    };
+  }, []);
 
-    if (!soundFile) return; // no matching sound file
-
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync(); // unload previous sound
-      soundRef.current = null;
-    }
-
-    const { sound } = await Audio.Sound.createAsync(soundFile);
-    soundRef.current = sound; // ensure sound is stored in ref
-    await sound.playAsync();
+  const stopSound = () => {
+    // pause every player, not just the last-started clip, so an overlapping
+    // tail from the previous phase can't survive a pause
+    Object.values(playersRef.current ?? {}).forEach((player) => {
+      player.pause();
+      player.seekTo(0); // rewind now so the next play() starts instantly
+    });
   };
 
-  const handlePause = async () => {
+  // sound player. The previous phase's clip is deliberately not stopped here:
+  // clips are duration-matched to their phases, so they end on their own, and
+  // cutting any leftover tail is an audible click.
+  const playSound = (type: "inhale" | "exhale", duration: number) => {
+    if (!isSoundEnabled) return; // don't play if sound is disabled
+
+    const player = playersRef.current?.[`${type}-${duration}`];
+
+    if (!player) return; // no matching sound file
+
+    player.play(); // preloaded and parked at 0 — starts immediately
+  };
+
+  const handlePause = () => {
     setIsRunning(!isRunning); // toggle state
 
     // isRunning is the pre-toggle value, so it's true when we're pausing —
     // that's exactly when the current clip needs to be stopped.
-    if (isRunning && soundRef.current) {
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
+    if (isRunning) {
+      stopSound();
     }
   };
 
@@ -140,9 +178,9 @@ export function useBreathingSession() {
 
         if (!resuming) {
           if (phase === "Inhale") {
-            await playSound("inhale", duration);
+            playSound("inhale", duration);
           } else if (phase === "Exhale") {
-            await playSound("exhale", duration);
+            playSound("exhale", duration);
           }
 
           if (isVibrationEnabled && phase !== "Hold in" && phase !== "Hold out") {

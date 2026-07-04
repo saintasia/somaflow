@@ -40,20 +40,14 @@ jest.mock("expo-haptics", () => ({
 jest.spyOn(Vibration, "vibrate").mockImplementation(() => {});
 
 // mock sound
-jest.mock("expo-av", () => ({
-  Audio: {
-    Sound: {
-      createAsync: jest.fn(() =>
-        Promise.resolve({
-          sound: {
-            playAsync: jest.fn(),
-            stopAsync: jest.fn(),
-            unloadAsync: jest.fn(),
-          },
-        })
-      ),
-    }
-  },
+jest.mock("expo-audio", () => ({
+  createAudioPlayer: jest.fn(() => ({
+    play: jest.fn(),
+    pause: jest.fn(),
+    seekTo: jest.fn(),
+    addListener: jest.fn(),
+    remove: jest.fn(),
+  })),
 }));
 
 // mock icons
