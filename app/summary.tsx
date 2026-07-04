@@ -1,16 +1,17 @@
 import { Image, StyleSheet, Pressable } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
+import { StatCard } from '@/components/StatCard';
 import { useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { techniques } from '@/constants/techniques';
+import { loadStats, type Session } from '@/constants/storage';
 import { useTheme } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { countSessionsThisWeek } from '../utils';
 
 
 export default function SummaryScreen() {
-  const [lastSession, setLastSession] = useState<{ technique: keyof typeof techniques; duration: number; day: string }>({ technique: "Resonant", duration: 0, day: "" });
+  const [lastSession, setLastSession] = useState<Session>({ technique: "Resonant", duration: 0, date: "" });
   const [totalSessions, setTotalSessions] = useState(0);
   const [sessionsThisWeek, setSessionsThisWeek] = useState(0);
   const {colors} = useTheme();
@@ -18,18 +19,14 @@ export default function SummaryScreen() {
 
   useEffect(() => {
     const loadSummary = async () => {
-      const historyJson = await AsyncStorage.getItem("breathingHistory");
-      const history = historyJson ? JSON.parse(historyJson) : [];
+      const { history, totalSessions } = await loadStats();
 
       if (history.length > 0) {
         setLastSession(history[0]); // get most recent session
       }
 
-      const totalSessions = await AsyncStorage.getItem("totalSessions");
-      setTotalSessions(totalSessions ? parseInt(totalSessions) : 0);
-
-      const sessionsThisWeek = countSessionsThisWeek(history);
-      setSessionsThisWeek(sessionsThisWeek);
+      setTotalSessions(totalSessions);
+      setSessionsThisWeek(countSessionsThisWeek(history));
     };
 
     loadSummary();
@@ -46,26 +43,20 @@ export default function SummaryScreen() {
         </ThemedText>
       </ThemedView>
 
-      <ThemedView style={[styles.card, { backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-        <ThemedView style={{ gap: 10, backgroundColor: colors.card, flex: 1 }}>
-          <ThemedText type="subtitle">Sessions so far</ThemedText>
-          <ThemedText>
-            Number of sessions you have completed since you started using the app.
-          </ThemedText>
-        </ThemedView>
-        <ThemedText type="title" style={{ fontSize: 48, lineHeight: 48 }}>{totalSessions}</ThemedText>
-      </ThemedView>
+      <StatCard
+        label="Sessions so far"
+        description="Number of sessions you have completed since you started using the app."
+        value={totalSessions}
+        style={styles.statCard}
+      />
 
-      <ThemedView style={[styles.card, { backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-        <ThemedView style={{ gap: 10, backgroundColor: colors.card, flex: 1 }}>
-          <ThemedText type="subtitle">This week</ThemedText>
-          <ThemedText>
-            See how many days this week you have completed a session.
-          </ThemedText>
-        </ThemedView>
-        <ThemedText type="title" style={{ fontSize: 48, lineHeight: 48 }}>{sessionsThisWeek}</ThemedText>
-      </ThemedView>
-      
+      <StatCard
+        label="This week"
+        description="See how many days this week you have completed a session."
+        value={sessionsThisWeek}
+        style={styles.statCard}
+      />
+
       <Pressable
         onPress={() => router.push("/")}
         style={[styles.button, { backgroundColor: colors.primary }]}
@@ -90,6 +81,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     flexDirection: 'column',
     gap: 10,
+  },
+  statCard: {
+    marginTop: 20,
   },
   button: {
     padding: 10,

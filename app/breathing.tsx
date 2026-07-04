@@ -1,195 +1,26 @@
-import { useState, useEffect, useRef } from "react";
-import { StyleSheet, Platform, Vibration, Animated, Pressable } from "react-native";
+import { StyleSheet, Animated, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
-import { techniques, type BreathingTechnique } from "@/constants/techniques";
-import * as Haptics from "expo-haptics";
+import { techniques } from "@/constants/techniques";
 import { useTheme } from "@react-navigation/native";
-import {useRouter} from 'expo-router';
-import { Audio } from 'expo-av';
-
-const inhaleSounds: { [key: number]: any } = {
-  4: require('@/assets/sounds/breathe-in-4.mp3'),
-};
-
-const exhaleSounds: { [key: number]: any } = {
-  4: require('@/assets/sounds/breathe-out-4.mp3'),
-  6: require('@/assets/sounds/breathe-out-6.mp3'),
-  8: require('@/assets/sounds/breathe-out-8.mp3'),
-};
+import { useBreathingSession } from "@/hooks/useBreathingSession";
 
 export default function BreathingScreen() {
-  const router = useRouter();
-  const { colors } = useTheme();
-  const lottieRef = useRef<LottieView>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const progress = useRef(new Animated.Value(0)).current;
-
-  // states
-  const [breathingTechnique, setBreathingTechnique] = useState<BreathingTechnique>("Resonant");
-  const [sessionDuration, setSessionDuration] = useState(5);
-  const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
-  const [currentPhase, setCurrentPhase] = useState("Inhale");
-  const [isRunning, setIsRunning] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [sessionCompleted, setSessionCompleted] = useState(false);
-
-  // sound player
-  const playSound = async (type: "inhale" | "exhale", duration: number) => {
-    if (!isSoundEnabled) return; // don't play if sound is disabled
-  
-    const soundFile = type === "inhale" ? inhaleSounds[duration] : exhaleSounds[duration];
-  
-    if (!soundFile) return; // no matching sound file
-  
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync(); // unload previous sound
-      soundRef.current = null;
-    }
-  
-    const { sound } = await Audio.Sound.createAsync(soundFile);
-    soundRef.current = sound; // ensure sound is stored in ref
-    await sound.playAsync();
-  };  
-
-  const handlePause = async () => {
-    setIsRunning(!isRunning); // toggle state
-  
-    if (!isRunning && soundRef.current) {
-      await soundRef.current.stopAsync();
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
-    }
-  };
-
-  // load saved settings
-  useEffect(() => {
-    const loadSettings = async () => {
-      const savedTechnique = await AsyncStorage.getItem("breathingTechnique") as BreathingTechnique;
-      const savedDuration = await AsyncStorage.getItem("sessionDuration");
-      const savedVibration = await AsyncStorage.getItem("isVibrationEnabled");
-      const savedSound = await AsyncStorage.getItem("isSoundEnabled");
-
-      if (savedTechnique) setBreathingTechnique(savedTechnique);
-      if (savedDuration) setSessionDuration(parseInt(savedDuration.replace("min", ""), 10));
-      if (savedVibration) setIsVibrationEnabled(JSON.parse(savedVibration));
-      if (savedSound) setIsSoundEnabled(JSON.parse(savedSound));
-    };
-    loadSettings();
-  }, []);
-
-  const selectedPattern = techniques[breathingTechnique] || techniques.Resonant;
-
-  // breathing logic
-  useEffect(() => {
-    if (!isRunning) {
-      progress.stopAnimation(); // stop animation when paused
-      return;
-    }
-  
-    let i = 0;
-    const totalSessionTime = sessionDuration * 60;
-    let elapsedTimeLocal = elapsedTime; // maintain paused time
-  
-    const pattern = [
-      { phase: "Inhale", duration: selectedPattern.pattern.inhale, animationRange: [0, 100] },
-      { phase: "Hold in", duration: selectedPattern.pattern.hold || 0, animationRange: [100, 100] },
-      { phase: "Exhale", duration: selectedPattern.pattern.exhale, animationRange: [100, 0] },
-      { phase: "Hold out", duration: selectedPattern.pattern.hold2 || 0, animationRange: [0, 0] },
-    ].filter((step) => step.duration > 0);
-  
-    let cycleActive = true;
-  
-    // Progress bar animation
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: (totalSessionTime - elapsedTimeLocal) * 1000, // adjust for pause
-      useNativeDriver: false,
-    }).start(() => {
-      if (elapsedTimeLocal >= totalSessionTime) {
-        setSessionCompleted(true); // mark session as completed if time lapsed
-      }
-    });
-  
-    const runBreathingCycle = async () => {
-      while (cycleActive && elapsedTimeLocal < totalSessionTime) {
-        if (!isRunning) return; // pause loop when session is paused
-
-        const { phase, duration, animationRange } = pattern[i];
-
-        setCurrentPhase(phase);
-        lottieRef.current?.play(animationRange[0], animationRange[1]);
-
-        if (phase === "Inhale") {
-          await playSound("inhale", duration);
-        } else if (phase === "Exhale") {
-          await playSound("exhale", duration);
-        }
-    
-        if (isVibrationEnabled && phase !== "Hold in" && phase !== "Hold out") {
-          if (Platform.OS === "android") {
-            Vibration.vibrate([500, 600, 500], false);
-          } else if (Platform.OS === "ios") {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          }
-        }
-    
-        await new Promise((resolve) => setTimeout(resolve, duration * 1000));
-    
-        elapsedTimeLocal += duration;
-        setElapsedTime(elapsedTimeLocal);
-        i = (i + 1) % pattern.length;
-
-        if (elapsedTimeLocal >= totalSessionTime) {
-          setSessionCompleted(true);
-          return;
-        }
-      }
-    };
-    
-  
-    runBreathingCycle();
-  
-    return () => {
-      cycleActive = false;
-      lottieRef.current?.reset();
-      Vibration.cancel();
-      progress.stopAnimation();
-    };
-  }, [breathingTechnique, isVibrationEnabled, isRunning, isSoundEnabled]);
-
-  useEffect(() => {
-    if (sessionCompleted) {
-      const saveSession = async () => {
-        const today = new Date();
-        // get existing history
-        const historyJson = await AsyncStorage.getItem("breathingHistory");
-        let history = historyJson ? JSON.parse(historyJson) : [];
-  
-        // ensure only last 30 sessions are stored to save space
-        history = [
-          { technique: breathingTechnique, duration: sessionDuration, date: today.toISOString() },
-          ...history.slice(0, 29) // keep only 30 most recent
-        ];
-  
-        await AsyncStorage.setItem("breathingHistory", JSON.stringify(history));
-  
-        // increment total sessions
-        const totalSessions = await AsyncStorage.getItem("totalSessions");
-        const newTotal = totalSessions ? parseInt(totalSessions) + 1 : 1;
-        await AsyncStorage.setItem("totalSessions", newTotal.toString());
-  
-        router.push("/summary");
-      };
-  
-      saveSession();
-    }
-  }, [sessionCompleted]);
-  
+  const { colors, dark } = useTheme();
+  const {
+    lottieRef,
+    progress,
+    breathingTechnique,
+    sessionDuration,
+    currentPhase,
+    secondsLeft,
+    isRunning,
+    elapsedTime,
+    sessionActive,
+    handlePause,
+  } = useBreathingSession();
 
   return (
     <ThemedView style={styles.container}>
@@ -206,14 +37,23 @@ export default function BreathingScreen() {
 
       {/* Lottie Animation */}
       <ThemedView style={styles.animationContainer}>
-        { isRunning && <ThemedText type="title" style={{ position: 'absolute', top: 0, color: colors.primary}}>{currentPhase}</ThemedText>}
+        { sessionActive && <ThemedText type="title" style={{ position: 'absolute', top: 0, color: colors.primary}}>{currentPhase}</ThemedText>}
 
         <LottieView
           ref={lottieRef}
           source={require("@/assets/animations/breathing.json")}
           loop={false}
+          speed={isRunning ? 1 : 0} // speed 0 freezes the current frame on pause (reliable on the New Architecture)
           style={styles.animation}
         />
+
+        { sessionActive && (
+          <ThemedView style={styles.countdownOverlay}>
+            <ThemedText type="title" style={[styles.countdownNumber, { color: dark ? colors.primary : "white" }]}>
+              {secondsLeft}
+            </ThemedText>
+          </ThemedView>
+        )}
       </ThemedView>
       <ThemedView style={{ position: "relative", width: "100%", flexDirection: "row", justifyContent: "center"}}>
       {elapsedTime === 0 && !isRunning && (
@@ -230,7 +70,7 @@ export default function BreathingScreen() {
           ]}
         />
       </ThemedView>
-      
+
       {/* Start / Pause / Continue button */}
       <Pressable
         // having to use onPressIn in a layout forces the button to also use onPressIn, has to do with React Native bug
@@ -275,6 +115,16 @@ const styles = StyleSheet.create({
   animation: {
     width: 220,
     height: 220,
+  },
+  countdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  countdownNumber: {
+    fontSize: 56,
+    lineHeight: 64,
   },
   progressBarContainer: {
     width: "80%",

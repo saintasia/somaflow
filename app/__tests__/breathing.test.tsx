@@ -43,7 +43,15 @@ jest.spyOn(Vibration, "vibrate").mockImplementation(() => {});
 jest.mock("expo-av", () => ({
   Audio: {
     Sound: {
-      createAsync: jest.fn(() => Promise.resolve({ sound: { playAsync: jest.fn() } })),
+      createAsync: jest.fn(() =>
+        Promise.resolve({
+          sound: {
+            playAsync: jest.fn(),
+            stopAsync: jest.fn(),
+            unloadAsync: jest.fn(),
+          },
+        })
+      ),
     }
   },
 }));
@@ -56,6 +64,12 @@ jest.mock("@expo/vector-icons", () => ({
 // force Android so the Vibration branch runs. (Don't mock RN's internal
 // Platform module path — it moves between RN versions; set OS directly.)
 Platform.OS = "android";
+
+// reset spy call counts (not implementations) so each test's vibration/sound
+// assertions start from zero
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 test("should start and pause session correctly", async () => {
   const { getByText } = render(<BreathingScreen />);

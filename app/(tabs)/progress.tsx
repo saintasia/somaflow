@@ -1,21 +1,16 @@
 import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { StatCard } from "@/components/StatCard";
 import { useTheme } from "@react-navigation/native";
+import { loadStats, type Session } from "@/constants/storage";
 import { getSessionsThisWeek } from "../../utils";
 
 const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function ProgressScreen() {
   const { colors } = useTheme();
-
-  interface Session {
-    date: string;
-    technique: string;
-    duration: number;
-  }
 
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [completedDays, setCompletedDays] = useState<{ [key: string]: boolean }>({});
@@ -24,10 +19,10 @@ export default function ProgressScreen() {
 
   useEffect(() => {
     const loadProgress = async () => {
-      const historyJson = await AsyncStorage.getItem("breathingHistory");
-      const history: Session[] = historyJson ? JSON.parse(historyJson) : [];
+      const { history, totalSessions } = await loadStats();
 
       setSessionHistory(history);
+      setTotalSessions(totalSessions);
 
       // filter history to include only sessions from this week
       const weeklySessions = getSessionsThisWeek(history);
@@ -44,10 +39,6 @@ export default function ProgressScreen() {
 
       // update weekly count
       setSessionsThisWeek(weeklySessions.length);
-
-      // update total sessions
-      const totalSessions = await AsyncStorage.getItem("totalSessions");
-      setTotalSessions(totalSessions ? parseInt(totalSessions) : 0);
     };
 
     loadProgress();
@@ -56,25 +47,14 @@ export default function ProgressScreen() {
   return (
     <ThemedView type="scrollable" style={styles.container}>
       {/* Total Sessions */}
-      <ThemedView style={[styles.card, { backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-        <ThemedView style={{ gap: 10, backgroundColor: colors.card, flex: 1 }}>
-          <ThemedText type="subtitle">Sessions so far</ThemedText>
-          <ThemedText>
-            Number of sessions you have completed since you started using the app.
-          </ThemedText>
-        </ThemedView>
-        <ThemedText type="title" style={{ fontSize: 48, lineHeight: 48 }}>{totalSessions}</ThemedText>
-      </ThemedView>
+      <StatCard
+        label="Sessions so far"
+        description="Number of sessions you have completed since you started using the app."
+        value={totalSessions}
+      />
 
       {/* Weekly Completion */}
-      <ThemedView style={[styles.card, { backgroundColor: colors.card }]}>
-        <ThemedView style={{ backgroundColor: colors.card, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <ThemedView style={{ gap: 10, backgroundColor: colors.card, flex: 1 }}>
-            <ThemedText type="subtitle">This week</ThemedText>
-            <ThemedText>Number of sessions this week</ThemedText>
-          </ThemedView>
-          <ThemedText type="title" style={{ fontSize: 48, lineHeight: 48 }}>{sessionsThisWeek}</ThemedText>
-        </ThemedView>
+      <StatCard label="This week" description="Number of sessions this week" value={sessionsThisWeek}>
         <ThemedView style={styles.pillContainer}>
           {daysOfWeek.map(day => (
             <ThemedView
@@ -90,7 +70,7 @@ export default function ProgressScreen() {
             </ThemedView>
           ))}
         </ThemedView>
-      </ThemedView>
+      </StatCard>
 
       {/* Last 20 Sessions */}
       <ThemedView style={{ marginTop: 40, marginBottom: 80 }}>
@@ -123,12 +103,6 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     gap: 10,
     backgroundColor: "transparent",
-  },
-  optionRow: {
-    padding: 16,
-    gap: 6,
-    flexDirection: "column",
-    borderRadius: 10,
   },
   pillContainer: {
     backgroundColor: "transparent",

@@ -1,14 +1,22 @@
 import { StyleSheet, Pressable } from "react-native";
 import { useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@react-navigation/native";
+import {
+  STORAGE_KEYS,
+  TECHNIQUE_OPTIONS,
+  DURATION_OPTIONS,
+  loadSettings,
+  saveSetting,
+  formatDuration,
+} from "@/constants/storage";
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
 
-  // State for settings
+  // State for settings. Duration is kept as its stored "10min" string here so
+  // it can be compared directly against the pill labels.
   const [breathingTechnique, setBreathingTechnique] = useState("Resonant");
   const [sessionDuration, setSessionDuration] = useState("10min");
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
@@ -16,24 +24,13 @@ export default function SettingsScreen() {
 
   // Load saved preferences on app start
   useEffect(() => {
-    const loadSettings = async () => {
-      const savedTechnique = await AsyncStorage.getItem("breathingTechnique");
-      const savedDuration = await AsyncStorage.getItem("sessionDuration");
-      const savedSound = await AsyncStorage.getItem("isSoundEnabled");
-      const savedVibration = await AsyncStorage.getItem("isVibrationEnabled");
-
-      if (savedTechnique) setBreathingTechnique(savedTechnique);
-      if (savedDuration) setSessionDuration(savedDuration);
-      if (savedSound) setIsSoundEnabled(JSON.parse(savedSound));
-      if (savedVibration) setIsVibrationEnabled(JSON.parse(savedVibration));
-    };
-    loadSettings();
+    loadSettings().then((settings) => {
+      setBreathingTechnique(settings.technique);
+      setSessionDuration(formatDuration(settings.duration));
+      setIsSoundEnabled(settings.isSoundEnabled);
+      setIsVibrationEnabled(settings.isVibrationEnabled);
+    });
   }, []);
-
-  // Save preferences when changed
-  const saveSetting = async (key: string, value: any) => {
-    await AsyncStorage.setItem(key, typeof value === "boolean" ? JSON.stringify(value) : value);
-  };
 
   return (
     <ThemedView type="scrollable">
@@ -43,12 +40,12 @@ export default function SettingsScreen() {
           <ThemedText type="subtitle">Default technique</ThemedText>
           <ThemedText>Set up your default breathing technique here</ThemedText>
           <ThemedView style={styles.pillContainer}>
-            {["Resonant", "4-7-8", "Box Breathing"].map((option) => (
+            {TECHNIQUE_OPTIONS.map((option) => (
               <Pressable
                 key={option}
                 onPress={() => {
                   setBreathingTechnique(option);
-                  saveSetting("breathingTechnique", option);
+                  saveSetting(STORAGE_KEYS.technique, option);
                 }}
                 style={[styles.pill, { backgroundColor: breathingTechnique === option ? colors.primary : colors.border }]}
               >
@@ -65,20 +62,23 @@ export default function SettingsScreen() {
           <ThemedText type="subtitle">Default duration</ThemedText>
           <ThemedText>Set up your default session length</ThemedText>
           <ThemedView style={styles.pillContainer}>
-            {["2min", "5min", "10min", "15min", "20min"].map((option) => (
-              <Pressable
-                key={option}
-                onPress={() => {
-                  setSessionDuration(option);
-                  saveSetting("sessionDuration", option);
-                }}
-                style={[styles.pill, { backgroundColor: sessionDuration === option ? colors.primary : colors.border }]}
-              >
-                <ThemedText type="defaultSemiBold" lightColor={sessionDuration === option ? "white" : colors.text}>
-                  {option}
-                </ThemedText>
-              </Pressable>
-            ))}
+            {DURATION_OPTIONS.map((minutes) => {
+              const option = formatDuration(minutes);
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => {
+                    setSessionDuration(option);
+                    saveSetting(STORAGE_KEYS.duration, option);
+                  }}
+                  style={[styles.pill, { backgroundColor: sessionDuration === option ? colors.primary : colors.border }]}
+                >
+                  <ThemedText type="defaultSemiBold" lightColor={sessionDuration === option ? "white" : colors.text}>
+                    {option}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
           </ThemedView>
         </ThemedView>
 
@@ -88,7 +88,7 @@ export default function SettingsScreen() {
           <Pressable
             onPress={() => {
               setIsSoundEnabled(!isSoundEnabled);
-              saveSetting("isSoundEnabled", !isSoundEnabled);
+              saveSetting(STORAGE_KEYS.soundEnabled, !isSoundEnabled);
             }}
             style={[styles.toggleButton, { backgroundColor: isSoundEnabled ? colors.primary : colors.border }]}
             testID="soundToggle"
@@ -104,7 +104,7 @@ export default function SettingsScreen() {
           <Pressable
             onPress={() => {
               setIsVibrationEnabled(!isVibrationEnabled);
-              saveSetting("isVibrationEnabled", !isVibrationEnabled);
+              saveSetting(STORAGE_KEYS.vibrationEnabled, !isVibrationEnabled);
             }}
             style={[styles.toggleButton, { backgroundColor: isVibrationEnabled ? colors.primary : colors.border }]}
             testID="vibrationToggle"
