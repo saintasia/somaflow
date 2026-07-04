@@ -27,6 +27,7 @@ export function useBreathingSession() {
   const router = useRouter();
   const lottieRef = useRef<LottieView>(null);
   const playersRef = useRef<Record<string, AudioPlayer> | null>(null);
+  const parkTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const progress = useRef(new Animated.Value(0)).current;
 
   // remember where the breath cycle was so Continue resumes instead of restarting
@@ -51,30 +52,17 @@ export function useBreathingSession() {
   // not garbage-collected, so remove them on unmount.
   useEffect(() => {
     const players: Record<string, AudioPlayer> = {};
-    const createPlayer = (key: string, file: number) => {
-      const player = createAudioPlayer(file);
-      // Park finished clips back at 0. Seeking is async on the native player,
-      // so rewinding at play time would delay the sound behind the animation;
-      // rewinding on finish makes the next play() start instantly. Pause
-      // before seeking — a finished player is still in the "playing" state,
-      // and seeking it without pausing restarts playback in a loop.
-      player.addListener("playbackStatusUpdate", (status) => {
-        if (status.didJustFinish) {
-          player.pause();
-          player.seekTo(0);
-        }
-      });
-      players[key] = player;
-    };
     Object.entries(inhaleSounds).forEach(([duration, file]) => {
-      createPlayer(`inhale-${duration}`, file);
+      players[`inhale-${duration}`] = createAudioPlayer(file);
     });
     Object.entries(exhaleSounds).forEach(([duration, file]) => {
-      createPlayer(`exhale-${duration}`, file);
+      players[`exhale-${duration}`] = createAudioPlayer(file);
     });
     playersRef.current = players;
 
     return () => {
+      parkTimersRef.current.forEach(clearTimeout);
+      parkTimersRef.current.clear();
       Object.values(players).forEach((player) => player.remove());
       playersRef.current = null;
     };
@@ -100,6 +88,20 @@ export function useBreathingSession() {
     if (!player) return; // no matching sound file
 
     player.play(); // preloaded and parked at 0 — starts immediately
+
+    // Park the clip back at 0 just after it ends, timed by our own clock, so
+    // the next play() starts instantly (seeking at play time is audibly
+    // late). Don't park via the native didJustFinish event: on Android that
+    // flag is derived from "state == ended", so it stays true while a
+    // finished clip sits at its end and a pause-on-finish handler would kill
+    // the next play() (https://github.com/expo/expo/issues/34301).
+    const parkTimer = setTimeout(() => {
+      parkTimersRef.current.delete(parkTimer);
+      if (!playersRef.current) return; // screen unmounted, player removed
+      player.pause();
+      player.seekTo(0);
+    }, duration * 1000 + 250);
+    parkTimersRef.current.add(parkTimer);
   };
 
   const handlePause = () => {
