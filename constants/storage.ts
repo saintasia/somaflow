@@ -11,9 +11,14 @@ export const STORAGE_KEYS = {
   duration: "sessionDuration",
   soundEnabled: "isSoundEnabled",
   vibrationEnabled: "isVibrationEnabled",
+  voice: "voiceGuidance",
   history: "breathingHistory",
   totalSessions: "totalSessions",
 } as const;
+
+// Voice guidance spoken over the music during a session ("off" keeps music only).
+export type VoiceOption = "female" | "male" | "off";
+export const VOICE_OPTIONS: VoiceOption[] = ["female", "male", "off"];
 
 // One completed breathing session, as stored in `breathingHistory`.
 export type Session = {
@@ -27,6 +32,7 @@ export type Settings = {
   duration: number; // minutes
   isSoundEnabled: boolean;
   isVibrationEnabled: boolean;
+  voice: VoiceOption;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -34,6 +40,7 @@ const DEFAULT_SETTINGS: Settings = {
   duration: 5,
   isSoundEnabled: true,
   isVibrationEnabled: true,
+  voice: "female",
 };
 
 // Keep only the 30 most recent sessions to bound on-device storage.
@@ -49,14 +56,15 @@ const parseDuration = (value: string | null, fallback: number): number => {
 
 export const formatDuration = (minutes: number): string => `${minutes}min`;
 
-// Load all four persisted settings at once, applying defaults for anything
+// Load all persisted settings at once, applying defaults for anything
 // not yet stored. Used by the breathing screen and mirrored on the home tab.
 export const loadSettings = async (): Promise<Settings> => {
-  const [technique, duration, sound, vibration] = await Promise.all([
+  const [technique, duration, sound, vibration, voice] = await Promise.all([
     AsyncStorage.getItem(STORAGE_KEYS.technique),
     AsyncStorage.getItem(STORAGE_KEYS.duration),
     AsyncStorage.getItem(STORAGE_KEYS.soundEnabled),
     AsyncStorage.getItem(STORAGE_KEYS.vibrationEnabled),
+    AsyncStorage.getItem(STORAGE_KEYS.voice),
   ]);
 
   return {
@@ -66,6 +74,9 @@ export const loadSettings = async (): Promise<Settings> => {
     isVibrationEnabled: vibration
       ? JSON.parse(vibration)
       : DEFAULT_SETTINGS.isVibrationEnabled,
+    voice: VOICE_OPTIONS.includes(voice as VoiceOption)
+      ? (voice as VoiceOption)
+      : DEFAULT_SETTINGS.voice,
   };
 };
 

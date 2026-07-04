@@ -7,10 +7,16 @@ import {
   STORAGE_KEYS,
   TECHNIQUE_OPTIONS,
   DURATION_OPTIONS,
+  VOICE_OPTIONS,
+  type VoiceOption,
   loadSettings,
   saveSetting,
   formatDuration,
 } from "@/constants/storage";
+
+// Stored voice values are lowercase; capitalize them for the pill labels.
+const voiceLabel = (option: VoiceOption) =>
+  option.charAt(0).toUpperCase() + option.slice(1);
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
@@ -21,6 +27,7 @@ export default function SettingsScreen() {
   const [sessionDuration, setSessionDuration] = useState("10min");
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
+  const [voice, setVoice] = useState<VoiceOption>("female");
 
   // Load saved preferences on app start
   useEffect(() => {
@@ -29,6 +36,7 @@ export default function SettingsScreen() {
       setSessionDuration(formatDuration(settings.duration));
       setIsSoundEnabled(settings.isSoundEnabled);
       setIsVibrationEnabled(settings.isVibrationEnabled);
+      setVoice(settings.voice);
     });
   }, []);
 
@@ -82,9 +90,31 @@ export default function SettingsScreen() {
           </ThemedView>
         </ThemedView>
 
+        {/* Voice Guidance Selection */}
+        <ThemedView style={[styles.optionRow, { backgroundColor: colors.card }]}>
+          <ThemedText type="subtitle">Voice guidance</ThemedText>
+          <ThemedText>Spoken cues for each breath, played over the music</ThemedText>
+          <ThemedView style={styles.pillContainer}>
+            {VOICE_OPTIONS.map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => {
+                  setVoice(option);
+                  saveSetting(STORAGE_KEYS.voice, option);
+                }}
+                style={[styles.pill, { backgroundColor: voice === option ? colors.primary : colors.border }]}
+              >
+                <ThemedText type="defaultSemiBold" lightColor={voice === option ? "white" : colors.text}>
+                  {voiceLabel(option)}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </ThemedView>
+        </ThemedView>
+
         {/* Other Settings */}
         <ThemedView style={{ ...styles.settingRow, backgroundColor: colors.card }}>
-          <ThemedText>Sound Guidance</ThemedText>
+          <ThemedText>Sound</ThemedText>
           <Pressable
             onPress={() => {
               setIsSoundEnabled(!isSoundEnabled);

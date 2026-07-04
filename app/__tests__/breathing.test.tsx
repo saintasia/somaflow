@@ -1,7 +1,7 @@
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import BreathingScreen from "@/app/breathing";
-import { Vibration, Platform } from "react-native";
-import {Animated} from "react-native";
+import { Animated } from "react-native";
+import * as Haptics from "expo-haptics";
 
 // mock storage
 jest.mock("@react-native-async-storage/async-storage", () => ({
@@ -28,7 +28,7 @@ jest.mock("expo-router", () => ({
   useRouter: jest.fn(() => ({ push: jest.fn() })),
 }));
 
-// mock haptics and vibration
+// mock haptics
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(),
   ImpactFeedbackStyle: {
@@ -37,7 +37,6 @@ jest.mock("expo-haptics", () => ({
     Heavy: 2,
   },
 }));
-jest.spyOn(Vibration, "vibrate").mockImplementation(() => {});
 
 // mock sound
 jest.mock("expo-audio", () => ({
@@ -55,11 +54,7 @@ jest.mock("@expo/vector-icons", () => ({
   Feather: () => null,
 }));
 
-// force Android so the Vibration branch runs. (Don't mock RN's internal
-// Platform module path — it moves between RN versions; set OS directly.)
-Platform.OS = "android";
-
-// reset spy call counts (not implementations) so each test's vibration/sound
+// reset spy call counts (not implementations) so each test's haptics/sound
 // assertions start from zero
 beforeEach(() => {
   jest.clearAllMocks();
@@ -80,11 +75,12 @@ test("should start and pause session correctly", async () => {
   ); // button should change to "Start"
 });
 
-test("should trigger vibration during inhale/exhale if enabled", async () => {
+test("should trigger a haptic cue when a phase starts if enabled", async () => {
   const { getByText } = render(<BreathingScreen />);
   const startButton = getByText(/Start/i);
 
   fireEvent(startButton, "pressIn");
-  await waitFor(() => expect(Vibration.vibrate).toHaveBeenCalledTimes(1)); // should vibrate on start
+  // the first pulse of the phase's ripple fires immediately
+  await waitFor(() => expect(Haptics.impactAsync).toHaveBeenCalled());
 });
 

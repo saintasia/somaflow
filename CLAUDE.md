@@ -52,12 +52,12 @@ npx jest -t "saves session on completion"
 - Pause/resume by toggling `isRunning`; the effect cleanup (`cycleActive = false`, freeze Lottie, cancel vibration) tears the loop down. `elapsedTime` is preserved across pauses, and `phaseIndexRef`/`phaseRemainingRef` let Continue resume mid-phase rather than restarting the cycle.
 - On completion it sets `sessionCompleted`, which triggers a separate effect that persists the session (via `addSession`) and navigates to the summary.
 
-**Sounds** are keyed by phase duration in seconds (`inhaleSounds`/`exhaleSounds` maps in `hooks/useBreathingSession.ts`). Only specific durations have audio files (`assets/sounds/breathe-{in,out}-{4,6,8}.mp3`); a phase with no matching file simply plays no sound. Adding audio for a new duration means adding the mp3 and a map entry.
+**Sounds** are two layers, both preloaded as `expo-audio` players in `hooks/useBreathingSession.ts` and started together at phase start: **music** swells keyed by phase duration in seconds (`inhaleMusic`/`exhaleMusic` maps; only specific durations have files — `assets/sounds/music-breathe-{in,out}-{4,6,8}.mp3` — a phase with no matching file plays no music) and **voice guidance** cues per phase (`voiceSounds` map; `assets/sounds/voice-{breathe-in,breathe-out,hold}-{female,male}.mp3`, selected by the `voiceGuidance` setting; both hold phases share the one hold clip). When a voice is active the music is ducked under it (`DUCKED_MUSIC_VOLUME`). Adding music for a new duration means adding the mp3 and a map entry; adding a new voice means adding its three clips, a `voiceSounds` entry, and a `VOICE_OPTIONS` value.
 
 ## Persistence (AsyncStorage)
 
 All data is stored as AsyncStorage key/value strings — there is no backend. **`constants/storage.ts` is the single access layer**: screens do not call `AsyncStorage` directly. It owns the key names (`STORAGE_KEYS`), the `Session` type, and helpers that encapsulate the value-format quirks:
-- `loadSettings()` → typed `{ technique, duration, isSoundEnabled, isVibrationEnabled }` with defaults (used by breathing, index, settings).
+- `loadSettings()` → typed `{ technique, duration, isSoundEnabled, isVibrationEnabled, voice }` with defaults (used by breathing, index, settings).
 - `saveSetting(STORAGE_KEYS.x, value)` — booleans are JSON-encoded, strings stored as-is. Format durations with `formatDuration(minutes)` before saving.
 - `addSession(session)` — prepends to the 30-item-capped history and bumps `totalSessions` (called on completion by `useBreathingSession`).
 - `loadStats()` → `{ history, totalSessions }` (used by progress, summary).
@@ -69,6 +69,7 @@ Underlying keys/formats (now owned by `storage.ts`, not written by hand in scree
 | `breathingTechnique` | string, e.g. `"4-7-8"` |
 | `sessionDuration` | string with `min` suffix, e.g. `"10min"`; parsed to a number by `loadSettings`, re-formatted by `formatDuration` |
 | `isSoundEnabled` / `isVibrationEnabled` | JSON bool (`"true"`/`"false"`) |
+| `voiceGuidance` | string: `"female"` (default) / `"male"` / `"off"` |
 | `breathingHistory` | JSON array of `Session` (`{ technique, duration, date(ISO) }`), capped at 30 most recent |
 | `totalSessions` | stringified int counter |
 

@@ -1,23 +1,59 @@
 import { useState, useEffect, useRef } from "react";
-import { Platform, Vibration, Animated } from "react-native";
+import { Animated } from "react-native";
 import LottieView from "lottie-react-native";
 import * as Haptics from "expo-haptics";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import { useRouter } from "expo-router";
 import { techniques, type BreathingTechnique } from "@/constants/techniques";
-import { loadSettings, addSession } from "@/constants/storage";
+import {
+  loadSettings,
+  addSession,
+  type VoiceOption,
+} from "@/constants/storage";
 
-// Sounds are keyed by phase duration in seconds. Only specific durations have
-// audio files; a phase whose duration has no entry simply plays no sound.
-const inhaleSounds: Record<number, number> = {
-  4: require("@/assets/sounds/breathe-in-4.mp3"),
+// Music swells are keyed by phase duration in seconds. Only specific durations
+// have audio files; a phase whose duration has no entry simply plays no music.
+const inhaleMusic: Record<number, number> = {
+  4: require("@/assets/sounds/music-breathe-in-4.mp3"),
 };
 
-const exhaleSounds: Record<number, number> = {
-  4: require("@/assets/sounds/breathe-out-4.mp3"),
-  6: require("@/assets/sounds/breathe-out-6.mp3"),
-  8: require("@/assets/sounds/breathe-out-8.mp3"),
+const exhaleMusic: Record<number, number> = {
+  4: require("@/assets/sounds/music-breathe-out-4.mp3"),
+  6: require("@/assets/sounds/music-breathe-out-6.mp3"),
+  8: require("@/assets/sounds/music-breathe-out-8.mp3"),
 };
+
+// Spoken guidance cues per phase, for each selectable voice. Both hold
+// phases share the one "hold" clip.
+const voiceSounds: Record<
+  Exclude<VoiceOption, "off">,
+  Record<"in" | "out" | "hold", number>
+> = {
+  female: {
+    in: require("@/assets/sounds/voice-breathe-in-female.mp3"),
+    out: require("@/assets/sounds/voice-breathe-out-female.mp3"),
+    hold: require("@/assets/sounds/voice-hold-female.mp3"),
+  },
+  male: {
+    in: require("@/assets/sounds/voice-breathe-in-male.mp3"),
+    out: require("@/assets/sounds/voice-breathe-out-male.mp3"),
+    hold: require("@/assets/sounds/voice-hold-male.mp3"),
+  },
+};
+
+// Music plays under the voice cue at this volume so the voice stays clearly
+// audible; when no voice is selected the music plays at full volume.
+const DUCKED_MUSIC_VOLUME = 0.6;
+
+// Haptic cues. expo-haptics is used on both platforms — unlike RN's Vibration
+// API (full-strength buzz only on Android), its Android implementation drives
+// the vibrator at low amplitude (a Light impact is ~50ms at amplitude 30/255),
+// so the cues stay gentle. A phase's perceived length comes from rippling
+// several light pulses: breathe phases ripple longer than holds.
+const HAPTIC_STYLE = Haptics.ImpactFeedbackStyle.Light;
+const HAPTIC_PULSE_GAP_MS = 170;
+const BREATHE_HAPTIC_PULSES = 5; // ~0.7s ripple on breathe in / breathe out
+const HOLD_HAPTIC_PULSES = 2; // ~0.2s ripple on the holds
 
 // Frame metadata from the Lottie JSON (ip/op = first/last frame, fr = fps).
 // The animation is only ~2s long natively, so each phase plays its segment at
@@ -36,6 +72,7 @@ export function useBreathingSession() {
   const lottieRef = useRef<LottieView>(null);
   const playersRef = useRef<Record<string, AudioPlayer> | null>(null);
   const parkTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const hapticTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const progress = useRef(new Animated.Value(0)).current;
 
   // remember where the breath cycle was so Continue resumes instead of restarting
@@ -43,17 +80,22 @@ export function useBreathingSession() {
   const phaseRemainingRef = useRef(0); // seconds left in the current phase (0 = start phase fresh)
 
   // states
-  const [breathingTechnique, setBreathingTechnique] = useState<BreathingTechnique>("Resonant");
+  const [breathingTechnique, setBreathingTechnique] =
+    useState<BreathingTechnique>("Resonant");
   const [sessionDuration, setSessionDuration] = useState(5);
   const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
-  const [currentPhase, setCurrentPhase] = useState("Inhale");
+  const [voice, setVoice] = useState<VoiceOption>("female");
+  const [currentPhase, setCurrentPhase] = useState("Breathe in");
   const [isRunning, setIsRunning] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [lottieSpeed, setLottieSpeed] = useState(1);
-  const [lottieSegment, setLottieSegment] = useState<{ from: number; to: number } | null>(null);
+  const [lottieSegment, setLottieSegment] = useState<{
+    from: number;
+    to: number;
+  } | null>(null);
 
   // Create one player per sound file up front. expo-audio loads sources
   // asynchronously after createAudioPlayer(), so a player created at phase
@@ -62,11 +104,16 @@ export function useBreathingSession() {
   // not garbage-collected, so remove them on unmount.
   useEffect(() => {
     const players: Record<string, AudioPlayer> = {};
-    Object.entries(inhaleSounds).forEach(([duration, file]) => {
-      players[`inhale-${duration}`] = createAudioPlayer(file);
+    Object.entries(inhaleMusic).forEach(([duration, file]) => {
+      players[`music-in-${duration}`] = createAudioPlayer(file);
     });
-    Object.entries(exhaleSounds).forEach(([duration, file]) => {
-      players[`exhale-${duration}`] = createAudioPlayer(file);
+    Object.entries(exhaleMusic).forEach(([duration, file]) => {
+      players[`music-out-${duration}`] = createAudioPlayer(file);
+    });
+    Object.entries(voiceSounds).forEach(([voiceName, clips]) => {
+      Object.entries(clips).forEach(([phaseKey, file]) => {
+        players[`voice-${voiceName}-${phaseKey}`] = createAudioPlayer(file);
+      });
     });
     playersRef.current = players;
 
@@ -87,31 +134,79 @@ export function useBreathingSession() {
     });
   };
 
-  // sound player. The previous phase's clip is deliberately not stopped here:
-  // clips are duration-matched to their phases, so they end on their own, and
-  // cutting any leftover tail is an audible click.
-  const playSound = (type: "inhale" | "exhale", duration: number) => {
+  // Park a clip back at 0 just after its phase ends, timed by our own clock,
+  // so the next play() starts instantly (seeking at play time is audibly
+  // late). Don't park via the native didJustFinish event: on Android that
+  // flag is derived from "state == ended", so it stays true while a finished
+  // clip sits at its end and a pause-on-finish handler would kill the next
+  // play() (https://github.com/expo/expo/issues/34301).
+  const parkAfterPhase = (player: AudioPlayer, duration: number) => {
+    const parkTimer = setTimeout(
+      () => {
+        parkTimersRef.current.delete(parkTimer);
+        if (!playersRef.current) return; // screen unmounted, player removed
+        player.pause();
+        player.seekTo(0);
+      },
+      duration * 1000 + 250,
+    );
+    parkTimersRef.current.add(parkTimer);
+  };
+
+  // Start the current phase's audio: the music swell (inhale/exhale only,
+  // keyed by duration) plus the spoken cue when a voice is selected, with the
+  // music ducked underneath it. The previous phase's clips are deliberately
+  // not stopped here: they're timed to end with their phase, and cutting any
+  // leftover tail is an audible click.
+  const playPhaseSounds = (phase: string, duration: number) => {
     if (!isSoundEnabled) return; // don't play if sound is disabled
 
-    const player = playersRef.current?.[`${type}-${duration}`];
+    const phaseKey =
+      phase === "Breathe in" ? "in" : phase === "Breathe out" ? "out" : "hold";
 
-    if (!player) return; // no matching sound file
+    const voicePlayer =
+      voice === "off"
+        ? null
+        : playersRef.current?.[`voice-${voice}-${phaseKey}`];
+    const musicPlayer =
+      phaseKey === "hold"
+        ? null
+        : playersRef.current?.[`music-${phaseKey}-${duration}`];
 
-    player.play(); // preloaded and parked at 0 — starts immediately
+    if (musicPlayer) {
+      musicPlayer.volume = voicePlayer ? DUCKED_MUSIC_VOLUME : 1;
+      musicPlayer.play(); // preloaded and parked at 0 — starts immediately
+      parkAfterPhase(musicPlayer, duration);
+    }
 
-    // Park the clip back at 0 just after it ends, timed by our own clock, so
-    // the next play() starts instantly (seeking at play time is audibly
-    // late). Don't park via the native didJustFinish event: on Android that
-    // flag is derived from "state == ended", so it stays true while a
-    // finished clip sits at its end and a pause-on-finish handler would kill
-    // the next play() (https://github.com/expo/expo/issues/34301).
-    const parkTimer = setTimeout(() => {
-      parkTimersRef.current.delete(parkTimer);
-      if (!playersRef.current) return; // screen unmounted, player removed
-      player.pause();
-      player.seekTo(0);
-    }, duration * 1000 + 250);
-    parkTimersRef.current.add(parkTimer);
+    if (voicePlayer) {
+      voicePlayer.play();
+      parkAfterPhase(voicePlayer, duration);
+    }
+  };
+
+  // A gentle ripple of light taps marking the phase change. The first pulse
+  // fires immediately; the rest are scheduled and cancelled by stopHaptics()
+  // if the session pauses or unmounts mid-ripple.
+  const playPhaseHaptics = (phase: string) => {
+    const pulses =
+      phase === "Breathe in" || phase === "Breathe out"
+        ? BREATHE_HAPTIC_PULSES
+        : HOLD_HAPTIC_PULSES;
+
+    Haptics.impactAsync(HAPTIC_STYLE);
+    for (let i = 1; i < pulses; i++) {
+      const timer = setTimeout(() => {
+        hapticTimersRef.current.delete(timer);
+        Haptics.impactAsync(HAPTIC_STYLE);
+      }, i * HAPTIC_PULSE_GAP_MS);
+      hapticTimersRef.current.add(timer);
+    }
+  };
+
+  const stopHaptics = () => {
+    hapticTimersRef.current.forEach(clearTimeout);
+    hapticTimersRef.current.clear();
   };
 
   const handlePause = () => {
@@ -143,6 +238,7 @@ export function useBreathingSession() {
       setSessionDuration(settings.duration);
       setIsVibrationEnabled(settings.isVibrationEnabled);
       setIsSoundEnabled(settings.isSoundEnabled);
+      setVoice(settings.voice);
     });
   }, []);
 
@@ -159,10 +255,26 @@ export function useBreathingSession() {
     let elapsedTimeLocal = elapsedTime; // maintain paused time
 
     const pattern = [
-      { phase: "Inhale", duration: selectedPattern.pattern.inhale, animationRange: [FIRST_FRAME, LAST_FRAME] },
-      { phase: "Hold in", duration: selectedPattern.pattern.hold || 0, animationRange: [LAST_FRAME, LAST_FRAME] },
-      { phase: "Exhale", duration: selectedPattern.pattern.exhale, animationRange: [LAST_FRAME, FIRST_FRAME] },
-      { phase: "Hold out", duration: selectedPattern.pattern.hold2 || 0, animationRange: [FIRST_FRAME, FIRST_FRAME] },
+      {
+        phase: "Breathe in",
+        duration: selectedPattern.pattern.inhale,
+        animationRange: [FIRST_FRAME, LAST_FRAME],
+      },
+      {
+        phase: "Hold in",
+        duration: selectedPattern.pattern.hold || 0,
+        animationRange: [LAST_FRAME, LAST_FRAME],
+      },
+      {
+        phase: "Breathe out",
+        duration: selectedPattern.pattern.exhale,
+        animationRange: [LAST_FRAME, FIRST_FRAME],
+      },
+      {
+        phase: "Hold out",
+        duration: selectedPattern.pattern.hold2 || 0,
+        animationRange: [FIRST_FRAME, FIRST_FRAME],
+      },
     ].filter((step) => step.duration > 0);
 
     // resume from the saved phase (guard against an out-of-range index)
@@ -209,18 +321,10 @@ export function useBreathingSession() {
         });
 
         if (!resuming) {
-          if (phase === "Inhale") {
-            playSound("inhale", duration);
-          } else if (phase === "Exhale") {
-            playSound("exhale", duration);
-          }
+          playPhaseSounds(phase, duration);
 
-          if (isVibrationEnabled && phase !== "Hold in" && phase !== "Hold out") {
-            if (Platform.OS === "android") {
-              Vibration.vibrate([500, 600, 500], false);
-            } else if (Platform.OS === "ios") {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            }
+          if (isVibrationEnabled) {
+            playPhaseHaptics(phase);
           }
         }
 
@@ -252,10 +356,16 @@ export function useBreathingSession() {
     return () => {
       cycleActive = false;
       lottieRef.current?.pause(); // freeze the circle in place instead of resetting it
-      Vibration.cancel();
+      stopHaptics();
       progress.stopAnimation();
     };
-  }, [breathingTechnique, isVibrationEnabled, isRunning, isSoundEnabled]);
+  }, [
+    breathingTechnique,
+    isVibrationEnabled,
+    isRunning,
+    isSoundEnabled,
+    voice,
+  ]);
 
   useEffect(() => {
     if (sessionCompleted) {
@@ -266,7 +376,9 @@ export function useBreathingSession() {
           date: new Date().toISOString(),
         });
 
-        router.push("/summary");
+        // replace, not push, so the finished breathing screen unmounts and
+        // releases its audio players instead of lingering under the summary
+        router.replace("/summary");
       };
 
       saveSession();

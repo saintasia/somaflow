@@ -58,7 +58,8 @@ export default function SummaryScreen() {
       />
 
       <Pressable
-        onPress={() => router.push("/")}
+        // navigate pops back to the existing home instead of stacking a new one
+        onPress={() => router.navigate("/")}
         style={[styles.button, { backgroundColor: colors.primary }]}
       >
         <ThemedText type="subtitle" style={{ color: 'white' }}>Go Home</ThemedText>
