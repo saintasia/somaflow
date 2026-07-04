@@ -1,13 +1,9 @@
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import BreathingScreen from "@/app/breathing";
-import { Animated } from "react-native";
+import { Animated, Platform, Vibration } from "react-native";
 import * as Haptics from "expo-haptics";
 
-// mock storage
-jest.mock("@react-native-async-storage/async-storage", () => ({
-  setItem: jest.fn(),
-  getItem: jest.fn(() => Promise.resolve(null)),
-}));
+// (AsyncStorage is mocked globally in jest.setup.js)
 
 // mock animation
 jest.spyOn(Animated, "timing").mockImplementation(() => {
@@ -18,9 +14,10 @@ jest.spyOn(Animated, "timing").mockImplementation(() => {
   };
 });
 
-// mock theme
+// mock theme + focus (useFocusEffect is a no-op: focus/blur isn't simulated)
 jest.mock("@react-navigation/native", () => ({
   useTheme: () => ({ colors: {} }),
+  useFocusEffect: jest.fn(),
 }));
 
 // mock navigation
@@ -82,5 +79,24 @@ test("should trigger a haptic cue when a phase starts if enabled", async () => {
   fireEvent(startButton, "pressIn");
   // the first pulse of the phase's ripple fires immediately
   await waitFor(() => expect(Haptics.impactAsync).toHaveBeenCalled());
+});
+
+test("keeps Android vibration patterns above the 1s silent-drop threshold", async () => {
+  // Android 13+ silently drops attribute-less vibration patterns totalling
+  // <= 1000ms on phones with "Touch feedback" off (see HAPTIC_BUCKET_PAD_MS
+  // in useBreathingSession) — this test trips if the pad is ever removed.
+  Platform.OS = "android";
+  const vibrateSpy = jest.spyOn(Vibration, "vibrate");
+  try {
+    const { getByText } = render(<BreathingScreen />);
+    fireEvent(getByText(/Start/i), "pressIn");
+
+    await waitFor(() => expect(vibrateSpy).toHaveBeenCalled());
+    const pattern = vibrateSpy.mock.calls[0][0] as number[];
+    expect(pattern.reduce((total, ms) => total + ms, 0)).toBeGreaterThan(1000);
+  } finally {
+    Platform.OS = "ios";
+    vibrateSpy.mockRestore();
+  }
 });
 

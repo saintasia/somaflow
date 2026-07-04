@@ -1,18 +1,16 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { render, waitFor} from "@testing-library/react-native";
 import ProgressScreen from "@/app/(tabs)/progress";
 
-// mock AsyncStorage
-jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: jest.fn((key) => {
-    if (key === "breathingHistory") {
-      return Promise.resolve(JSON.stringify([{ technique: "Resonant", duration: 5, date: "2024-02-20" }]));
-    }
-    if (key === "totalSessions") {
-      return Promise.resolve("8");
-    }
-    return Promise.resolve(null);
-  }),
-}));
+// seed the global AsyncStorage mock (jest.setup.js) with session history
+beforeEach(async () => {
+  await AsyncStorage.clear();
+  await AsyncStorage.setItem(
+    "breathingHistory",
+    JSON.stringify([{ technique: "Resonant", duration: 5, date: "2024-02-20" }])
+  );
+  await AsyncStorage.setItem("totalSessions", "8");
+});
 
 // mock theme
 jest.mock("@react-navigation/native", () => ({

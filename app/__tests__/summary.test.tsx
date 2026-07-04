@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { render, waitFor } from "@testing-library/react-native";
 import SummaryScreen from "@/app/summary";
 
@@ -11,17 +12,15 @@ jest.mock("@react-navigation/native", () => ({
   useTheme: () => ({ colors: {} }),
 }));
 
-jest.mock("@react-native-async-storage/async-storage", () => ({
-  getItem: jest.fn((key) => {
-    if (key === "breathingHistory") {
-      return Promise.resolve(JSON.stringify([{ technique: "Resonant", duration: 5, day: "Monday" }]));
-    }
-    if (key === "totalSessions") {
-      return Promise.resolve("8");
-    }
-    return Promise.resolve(null);
-  }),
-}));
+// seed the global AsyncStorage mock (jest.setup.js) with a finished session
+beforeEach(async () => {
+  await AsyncStorage.clear();
+  await AsyncStorage.setItem(
+    "breathingHistory",
+    JSON.stringify([{ technique: "Resonant", duration: 5, day: "Monday" }])
+  );
+  await AsyncStorage.setItem("totalSessions", "8");
+});
 
 test("should display completed session details", async () => {
   const { getByText } = render(<SummaryScreen />);

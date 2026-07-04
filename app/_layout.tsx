@@ -56,11 +56,14 @@ export default function RootLayout() {
             headerTitle: 'Breathing',
             headerLeft: () => (
               <Pressable
-                // navigate (not push) pops back to the existing home screen,
-                // unmounting this screen so its preloaded audio players are
-                // released — pushing here stacked a new home on top and leaked
-                // 10 native players per abandoned breathing screen.
-                onPressIn={() => router.navigate("/")}
+                // back() pops this screen, guaranteeing it unmounts and its
+                // preloaded audio players are released. navigate("/") could
+                // leave this screen mounted with its session still playing
+                // behind the tabs, and push stacked a new home on top,
+                // leaking 10 native players per abandoned breathing screen.
+                onPressIn={() =>
+                  router.canGoBack() ? router.back() : router.navigate("/")
+                }
                 // bug in React native doesn't allow onPress to work: https://github.com/expo/expo/issues/33093
                 style={{ marginRight: 14 }}
                 hitSlop={40}

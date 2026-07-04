@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { Animated } from "react-native";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Animated, Platform, Vibration } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import LottieView from "lottie-react-native";
 import * as Haptics from "expo-haptics";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
@@ -45,15 +46,26 @@ const voiceSounds: Record<
 // audible; when no voice is selected the music plays at full volume.
 const DUCKED_MUSIC_VOLUME = 0.6;
 
-// Haptic cues. expo-haptics is used on both platforms — unlike RN's Vibration
-// API (full-strength buzz only on Android), its Android implementation drives
-// the vibrator at low amplitude (a Light impact is ~50ms at amplitude 30/255),
-// so the cues stay gentle. A phase's perceived length comes from rippling
-// several light pulses: breathe phases ripple longer than holds.
+// Haptic cues marking each phase change: breathe phases vibrate longer than
+// holds. On Android this is one steady RN Vibration one-shot — expo-haptics
+// there drives the vibrator at amplitude 30/255, below what the motor
+// physically responds to, so its impacts aren't felt at all. iOS has no
+// duration control over the Taptic engine, so a ripple of Light impacts
+// approximates the same lengths.
 const HAPTIC_STYLE = Haptics.ImpactFeedbackStyle.Light;
-const HAPTIC_PULSE_GAP_MS = 170;
-const BREATHE_HAPTIC_PULSES = 5; // ~0.7s ripple on breathe in / breathe out
-const HOLD_HAPTIC_PULSES = 2; // ~0.2s ripple on the holds
+const HAPTIC_PULSE_GAP_MS = 170; // start-to-start spacing of the iOS pulses
+const BREATHE_HAPTIC_PULSES = 5; // iOS: ~0.7s ripple on breathe in / out
+const HOLD_HAPTIC_PULSES = 2; // iOS: ~0.2s ripple on the holds
+const BREATHE_VIBRATION_MS = 800; // Android: steady buzz on breathe in / out
+const HOLD_VIBRATION_MS = 300; // Android: shorter buzz on the holds
+// Android 13+ silently reroutes attribute-less vibrations totalling <= 1000ms
+// into the "Touch feedback" settings bucket (VibratorManagerService
+// .fixupVibrationAttributes promotes USAGE_UNKNOWN to USAGE_TOUCH for
+// haptic-feedback candidates), and phones with Touch feedback off drop them
+// without error. A trailing WAIT segment — which adds no felt vibration —
+// pushes every pattern past 1000ms so it stays in the media bucket
+// ("Media vibration" setting) and actually plays.
+const HAPTIC_BUCKET_PAD_MS = 1200;
 
 // Frame metadata from the Lottie JSON (ip/op = first/last frame, fr = fps).
 // The animation is only ~2s long natively, so each phase plays its segment at
@@ -62,6 +74,33 @@ const lottieAnimation = require("@/assets/animations/breathing.json");
 const FIRST_FRAME: number = lottieAnimation.ip;
 const LAST_FRAME: number = lottieAnimation.op;
 const LOTTIE_NATIVE_SECONDS = (LAST_FRAME - FIRST_FRAME) / lottieAnimation.fr;
+
+// All of the app's audio players, created lazily once and kept for the app's
+// lifetime. expo-audio loads sources asynchronously after createAudioPlayer()
+// (so fresh players start late), and every player holds a native instance
+// from a limited Android pool that is not garbage-collected — creating and
+// removing them per screen visit both delayed the first phase's clips and,
+// under quick remounts, exhausted the pool so play() failed silently until
+// the app was killed. A fixed app-wide set sidesteps the whole class.
+let appPlayers: Record<string, AudioPlayer> | null = null;
+const getPlayers = (): Record<string, AudioPlayer> => {
+  if (!appPlayers) {
+    const players: Record<string, AudioPlayer> = {};
+    Object.entries(inhaleMusic).forEach(([duration, file]) => {
+      players[`music-in-${duration}`] = createAudioPlayer(file);
+    });
+    Object.entries(exhaleMusic).forEach(([duration, file]) => {
+      players[`music-out-${duration}`] = createAudioPlayer(file);
+    });
+    Object.entries(voiceSounds).forEach(([voiceName, clips]) => {
+      Object.entries(clips).forEach(([phaseKey, file]) => {
+        players[`voice-${voiceName}-${phaseKey}`] = createAudioPlayer(file);
+      });
+    });
+    appPlayers = players;
+  }
+  return appPlayers;
+};
 
 // The stateful engine behind the breathing screen: it loads the user's
 // settings, drives the phase-by-phase loop (Lottie segment + sound + haptics +
@@ -97,31 +136,25 @@ export function useBreathingSession() {
     to: number;
   } | null>(null);
 
-  // Create one player per sound file up front. expo-audio loads sources
-  // asynchronously after createAudioPlayer(), so a player created at phase
-  // start begins playing late and drifts out of sync with the animation —
-  // preloaded players start instantly. Players hold native resources and are
-  // not garbage-collected, so remove them on unmount.
+  // The players are a lazy module-level singleton: created on the first
+  // breathing-screen visit and kept for the app's lifetime (see getPlayers).
+  // The screen just borrows them: on unmount it silences and rewinds them,
+  // but never removes them, so a re-entered screen starts from fully-loaded
+  // players instead of racing their async load (late first phase) or
+  // Android's native player release (silent sessions after quick remounts).
   useEffect(() => {
-    const players: Record<string, AudioPlayer> = {};
-    Object.entries(inhaleMusic).forEach(([duration, file]) => {
-      players[`music-in-${duration}`] = createAudioPlayer(file);
-    });
-    Object.entries(exhaleMusic).forEach(([duration, file]) => {
-      players[`music-out-${duration}`] = createAudioPlayer(file);
-    });
-    Object.entries(voiceSounds).forEach(([voiceName, clips]) => {
-      Object.entries(clips).forEach(([phaseKey, file]) => {
-        players[`voice-${voiceName}-${phaseKey}`] = createAudioPlayer(file);
-      });
-    });
+    const players = getPlayers();
+    const parkTimers = parkTimersRef.current;
     playersRef.current = players;
 
     return () => {
-      parkTimersRef.current.forEach(clearTimeout);
-      parkTimersRef.current.clear();
-      Object.values(players).forEach((player) => player.remove());
-      playersRef.current = null;
+      parkTimers.forEach(clearTimeout);
+      parkTimers.clear();
+      Object.values(players).forEach((player) => {
+        player.pause();
+        player.seekTo(0);
+      });
+      playersRef.current = null; // guards the park timers
     };
   }, []);
 
@@ -185,15 +218,20 @@ export function useBreathingSession() {
     }
   };
 
-  // A gentle ripple of light taps marking the phase change. The first pulse
-  // fires immediately; the rest are scheduled and cancelled by stopHaptics()
-  // if the session pauses or unmounts mid-ripple.
+  // The haptic cue for a phase change: one steady buzz on Android, a ripple
+  // of light impacts on iOS. stopHaptics() cuts either short if the session
+  // pauses or unmounts mid-cue.
   const playPhaseHaptics = (phase: string) => {
-    const pulses =
-      phase === "Breathe in" || phase === "Breathe out"
-        ? BREATHE_HAPTIC_PULSES
-        : HOLD_HAPTIC_PULSES;
+    const isBreathe = phase === "Breathe in" || phase === "Breathe out";
 
+    if (Platform.OS === "android") {
+      const ms = isBreathe ? BREATHE_VIBRATION_MS : HOLD_VIBRATION_MS;
+      // one steady buzz + the silent bucket pad (see HAPTIC_BUCKET_PAD_MS)
+      Vibration.vibrate([0, ms, HAPTIC_BUCKET_PAD_MS]);
+      return;
+    }
+
+    const pulses = isBreathe ? BREATHE_HAPTIC_PULSES : HOLD_HAPTIC_PULSES;
     Haptics.impactAsync(HAPTIC_STYLE);
     for (let i = 1; i < pulses; i++) {
       const timer = setTimeout(() => {
@@ -207,7 +245,21 @@ export function useBreathingSession() {
   const stopHaptics = () => {
     hapticTimersRef.current.forEach(clearTimeout);
     hapticTimersRef.current.clear();
+    Vibration.cancel(); // stop an in-progress Android buzz (no-op elsewhere)
   };
+
+  // Safety net: if the screen loses focus while still mounted (a navigation
+  // path that covers it instead of popping it), halt the session so its loop,
+  // audio, and haptics can't keep running behind another screen.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setIsRunning(false);
+        stopSound();
+        stopHaptics();
+      };
+    }, []),
+  );
 
   const handlePause = () => {
     setIsRunning(!isRunning); // toggle state
