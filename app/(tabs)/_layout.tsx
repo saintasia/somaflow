@@ -1,11 +1,13 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -15,7 +17,9 @@ export default function TabLayout() {
         headerShown: false, // no top bar on pages with footer nav
         tabBarStyle: {
           backgroundColor: Colors[colorScheme ?? 'light'].background,
-          height: 64,
+          // a fixed height must include the bottom inset, or the Android
+          // gesture bar / iOS home indicator overlays the tab bar
+          height: 64 + insets.bottom,
           paddingTop: 8,
         },
       }}>
