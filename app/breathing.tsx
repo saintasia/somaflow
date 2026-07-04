@@ -11,6 +11,7 @@ export default function BreathingScreen() {
   const { colors, dark } = useTheme();
   const {
     lottieRef,
+    lottieSpeed,
     progress,
     breathingTechnique,
     sessionDuration,
@@ -43,7 +44,9 @@ export default function BreathingScreen() {
           ref={lottieRef}
           source={require("@/assets/animations/breathing.json")}
           loop={false}
-          speed={isRunning ? 1 : 0} // speed 0 freezes the current frame on pause (reliable on the New Architecture)
+          // lottieSpeed stretches the ~2s animation across the current phase;
+          // speed 0 freezes the current frame on pause (reliable on the New Architecture)
+          speed={isRunning ? lottieSpeed : 0}
           style={styles.animation}
         />
 
