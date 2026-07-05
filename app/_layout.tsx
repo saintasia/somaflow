@@ -10,19 +10,26 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
 import { Pressable } from 'react-native';
 import { Colors } from '@/constants/Colors'
+import { preloadBreathingAudio } from '@/hooks/useBreathingSession';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
-  
+
 
   const [loaded] = useFonts({
     InclusiveSansMedium: require('../assets/fonts/InclusiveSans-Medium.ttf'),
     InclusiveSansRegular: require('../assets/fonts/InclusiveSans-Regular.ttf'),
     InclusiveSansBold: require('../assets/fonts/InclusiveSans-Bold.ttf'),
   });
+
+  // download the breathing audio and create its players now, so they're ready
+  // well before the first session's Start press (see preloadBreathingAudio)
+  useEffect(() => {
+    preloadBreathingAudio();
+  }, []);
 
   useEffect(() => {
     if (loaded) {

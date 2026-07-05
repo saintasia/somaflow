@@ -4,8 +4,13 @@ import { useFocusEffect } from "@react-navigation/native";
 import LottieView from "lottie-react-native";
 import * as Haptics from "expo-haptics";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
+import { Asset } from "expo-asset";
 import { useRouter } from "expo-router";
 import { techniques, type BreathingTechnique } from "@/constants/techniques";
+import {
+  visualizations,
+  type Visualization,
+} from "@/constants/visualizations";
 import {
   loadSettings,
   addSession,
@@ -67,24 +72,52 @@ const HOLD_VIBRATION_MS = 300; // Android: shorter buzz on the holds
 // ("Media vibration" setting) and actually plays.
 const HAPTIC_BUCKET_PAD_MS = 1200;
 
-// Frame metadata from the Lottie JSON (ip/op = first/last frame, fr = fps).
-// The animation is only ~2s long natively, so each phase plays its segment at
-// a scaled speed to span the phase exactly (see lottieSpeed below).
-const lottieAnimation = require("@/assets/animations/breathing.json");
-const FIRST_FRAME: number = lottieAnimation.ip;
-const LAST_FRAME: number = lottieAnimation.op;
-const LOTTIE_NATIVE_SECONDS = (LAST_FRAME - FIRST_FRAME) / lottieAnimation.fr;
-
 // All of the app's audio players, created lazily once and kept for the app's
-// lifetime. expo-audio loads sources asynchronously after createAudioPlayer()
-// (so fresh players start late), and every player holds a native instance
-// from a limited Android pool that is not garbage-collected — creating and
-// removing them per screen visit both delayed the first phase's clips and,
-// under quick remounts, exhausted the pool so play() failed silently until
-// the app was killed. A fixed app-wide set sidesteps the whole class.
-let appPlayers: Record<string, AudioPlayer> | null = null;
-const getPlayers = (): Record<string, AudioPlayer> => {
-  if (!appPlayers) {
+// lifetime. Every player holds a native instance from a limited Android pool
+// that is not garbage-collected — creating and removing them per screen visit
+// both delayed the first phase's clips and, under quick remounts, exhausted
+// the pool so play() failed silently until the app was killed. A fixed
+// app-wide set sidesteps the whole class.
+//
+// Two hard-won constraints on top of that:
+//
+// 1. The assets are downloaded (Asset.loadAsync) BEFORE the players are
+//    created. createAudioPlayer resolves a require()'d mp3 to
+//    `asset.localUri ?? asset.uri` without downloading — in Expo Go / dev
+//    that's a Metro dev-server HTTP URL, so every player streamed its clip
+//    from the laptop at load time, and a flaky phone<->laptop connection left
+//    all players stuck unloaded forever, with no error surfaced to JS
+//    (expo-audio's Android listener has no onPlayerError). Downloading first
+//    hands every player a local file URI. In release builds the assets are
+//    already on-device and this resolves immediately.
+//
+// 2. The cache lives on globalThis, NOT in a module-level variable: Metro
+//    fast refresh re-evaluates this module, and a module-level cache would be
+//    recreated — leaking the previous native players per refresh until
+//    Android's pool ran dry (only killing the app recovers). globalThis
+//    survives fast refresh, so re-evaluations reuse the same players.
+//    (Dev caveat: after editing the sound maps themselves, fully reload the
+//    app so the cache is rebuilt with the new entries.)
+//
+// The cache holds the creation PROMISE (not the result) so concurrent mounts
+// can't double-create; on failure it resets so the next visit retries.
+const PLAYERS_CACHE_KEY = "__somaflowAudioPlayers__";
+const getPlayers = (): Promise<Record<string, AudioPlayer>> => {
+  const cache = globalThis as unknown as Record<
+    string,
+    Promise<Record<string, AudioPlayer>> | undefined
+  >;
+  const existing = cache[PLAYERS_CACHE_KEY];
+  if (existing) return existing;
+
+  const creating = (async () => {
+    const allAudioModules = [
+      ...Object.values(inhaleMusic),
+      ...Object.values(exhaleMusic),
+      ...Object.values(voiceSounds).flatMap((clips) => Object.values(clips)),
+    ];
+    await Asset.loadAsync(allAudioModules);
+
     const players: Record<string, AudioPlayer> = {};
     Object.entries(inhaleMusic).forEach(([duration, file]) => {
       players[`music-in-${duration}`] = createAudioPlayer(file);
@@ -97,9 +130,28 @@ const getPlayers = (): Record<string, AudioPlayer> => {
         players[`voice-${voiceName}-${phaseKey}`] = createAudioPlayer(file);
       });
     });
-    appPlayers = players;
-  }
-  return appPlayers;
+
+    return players;
+  })();
+
+  cache[PLAYERS_CACHE_KEY] = creating;
+  creating.catch(() => {
+    // failed (likely the asset download) — allow the next visit to retry
+    delete cache[PLAYERS_CACHE_KEY];
+  });
+  return creating;
+};
+
+// Warm the audio pipeline at app start (called from the root layout): the
+// asset download + player creation take a beat on a cold start, and a Start
+// pressed before they finish plays its first phase with no sound (phase
+// sounds silently skip when the players aren't ready). Preloading makes them
+// ready long before anyone can reach the Start button.
+export const preloadBreathingAudio = (): void => {
+  getPlayers().catch(() => {
+    // ignored here — the breathing screen retries and warns when it actually
+    // needs the players
+  });
 };
 
 // The stateful engine behind the breathing screen: it loads the user's
@@ -122,6 +174,7 @@ export function useBreathingSession() {
   const [breathingTechnique, setBreathingTechnique] =
     useState<BreathingTechnique>("Resonant");
   const [sessionDuration, setSessionDuration] = useState(5);
+  const [visualization, setVisualization] = useState<Visualization>("circle");
   const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [voice, setVoice] = useState<VoiceOption>("female");
@@ -143,14 +196,25 @@ export function useBreathingSession() {
   // players instead of racing their async load (late first phase) or
   // Android's native player release (silent sessions after quick remounts).
   useEffect(() => {
-    const players = getPlayers();
+    let mounted = true;
     const parkTimers = parkTimersRef.current;
-    playersRef.current = players;
+
+    getPlayers()
+      .then((players) => {
+        if (!mounted) return; // left before the assets arrived; cache keeps them for next visit
+        playersRef.current = players;
+      })
+      .catch((error) => {
+        // playersRef stays null — phases simply skip their sounds; the cache
+        // reset in getPlayers means the next visit retries the download
+        console.warn("[breathing] audio unavailable, assets failed to load:", error);
+      });
 
     return () => {
+      mounted = false;
       parkTimers.forEach(clearTimeout);
       parkTimers.clear();
-      Object.values(players).forEach((player) => {
+      Object.values(playersRef.current ?? {}).forEach((player) => {
         player.pause();
         player.seekTo(0);
       });
@@ -158,12 +222,49 @@ export function useBreathingSession() {
     };
   }, []);
 
+  // clips frozen mid-play by the last pause, waiting for Continue
+  const pausedMidClipRef = useRef<AudioPlayer[]>([]);
+
   const stopSound = () => {
-    // pause every player, not just the last-started clip, so an overlapping
-    // tail from the previous phase can't survive a pause
+    // Full stop (leaving the screen): pause every player, not just the
+    // last-started clip, so an overlapping tail can't survive, and rewind so
+    // the next play() starts instantly.
+    pausedMidClipRef.current = [];
     Object.values(playersRef.current ?? {}).forEach((player) => {
       player.pause();
-      player.seekTo(0); // rewind now so the next play() starts instantly
+      player.seekTo(0);
+    });
+  };
+
+  // Pause (the in-session button): freeze playing clips where they are so
+  // Continue picks the audio back up instead of leaving the rest of the
+  // phase silent. Clips that already finished are parked at 0 as usual —
+  // their park timers are cleared here (they'd fire mid-pause and rewind the
+  // frozen clips too), and the resumed clips are re-parked on Continue.
+  const pauseSound = () => {
+    parkTimersRef.current.forEach(clearTimeout);
+    parkTimersRef.current.clear();
+
+    const paused: AudioPlayer[] = [];
+    Object.values(playersRef.current ?? {}).forEach((player) => {
+      if (player.playing) {
+        player.pause(); // keeps its position for Continue
+        paused.push(player);
+      } else {
+        player.pause();
+        player.seekTo(0); // park any finished tail so its next play() is clean
+      }
+    });
+    pausedMidClipRef.current = paused;
+  };
+
+  const resumeSound = () => {
+    const paused = pausedMidClipRef.current;
+    pausedMidClipRef.current = [];
+    paused.forEach((player) => {
+      player.play();
+      // re-park for the rest of the phase (the cleared pause-time timer)
+      parkAfterPhase(player, phaseRemainingRef.current);
     });
   };
 
@@ -186,14 +287,14 @@ export function useBreathingSession() {
     parkTimersRef.current.add(parkTimer);
   };
 
-  // Start the current phase's audio: the music swell (inhale/exhale only,
-  // keyed by duration) plus the spoken cue when a voice is selected, with the
-  // music ducked underneath it. The previous phase's clips are deliberately
+  // Start the current phase's audio. The two layers are gated independently —
+  // the music swell (inhale/exhale only, keyed by duration) by the
+  // "Background sound" toggle, the spoken cue by the voice setting — so
+  // turning one off never silences the other. When both play, the music is
+  // ducked under the voice. The previous phase's clips are deliberately
   // not stopped here: they're timed to end with their phase, and cutting any
   // leftover tail is an audible click.
   const playPhaseSounds = (phase: string, duration: number) => {
-    if (!isSoundEnabled) return; // don't play if sound is disabled
-
     const phaseKey =
       phase === "Breathe in" ? "in" : phase === "Breathe out" ? "out" : "hold";
 
@@ -202,7 +303,7 @@ export function useBreathingSession() {
         ? null
         : playersRef.current?.[`voice-${voice}-${phaseKey}`];
     const musicPlayer =
-      phaseKey === "hold"
+      !isSoundEnabled || phaseKey === "hold"
         ? null
         : playersRef.current?.[`music-${phaseKey}-${duration}`];
 
@@ -264,10 +365,13 @@ export function useBreathingSession() {
   const handlePause = () => {
     setIsRunning(!isRunning); // toggle state
 
-    // isRunning is the pre-toggle value, so it's true when we're pausing —
-    // that's exactly when the current clip needs to be stopped.
+    // isRunning is the pre-toggle value: true means we're pausing — freeze
+    // the current clips in place; false means we're starting/continuing —
+    // resume whatever the last pause froze (a no-op on a fresh start).
     if (isRunning) {
-      stopSound();
+      pauseSound();
+    } else {
+      resumeSound();
     }
   };
 
@@ -288,6 +392,7 @@ export function useBreathingSession() {
     loadSettings().then((settings) => {
       setBreathingTechnique(settings.technique);
       setSessionDuration(settings.duration);
+      setVisualization(settings.visualization);
       setIsVibrationEnabled(settings.isVibrationEnabled);
       setIsSoundEnabled(settings.isSoundEnabled);
       setVoice(settings.voice);
@@ -295,6 +400,10 @@ export function useBreathingSession() {
   }, []);
 
   const selectedPattern = techniques[breathingTechnique] || techniques.Resonant;
+  // The selected Lottie animation plus its frame metadata (first/last frame,
+  // native seconds), used to scale each phase's playback speed.
+  const selectedVisualization =
+    visualizations[visualization] || visualizations.circle;
 
   // breathing logic
   useEffect(() => {
@@ -306,26 +415,27 @@ export function useBreathingSession() {
     const totalSessionTime = sessionDuration * 60;
     let elapsedTimeLocal = elapsedTime; // maintain paused time
 
+    const { firstFrame, lastFrame } = selectedVisualization;
     const pattern = [
       {
         phase: "Breathe in",
         duration: selectedPattern.pattern.inhale,
-        animationRange: [FIRST_FRAME, LAST_FRAME],
+        animationRange: [firstFrame, lastFrame],
       },
       {
         phase: "Hold in",
         duration: selectedPattern.pattern.hold || 0,
-        animationRange: [LAST_FRAME, LAST_FRAME],
+        animationRange: [lastFrame, lastFrame],
       },
       {
         phase: "Breathe out",
         duration: selectedPattern.pattern.exhale,
-        animationRange: [LAST_FRAME, FIRST_FRAME],
+        animationRange: [lastFrame, firstFrame],
       },
       {
         phase: "Hold out",
         duration: selectedPattern.pattern.hold2 || 0,
-        animationRange: [FIRST_FRAME, FIRST_FRAME],
+        animationRange: [firstFrame, firstFrame],
       },
     ].filter((step) => step.duration > 0);
 
@@ -364,7 +474,7 @@ export function useBreathingSession() {
         // picks up where it left off. The sound and vibration only fire when
         // the phase first begins, so resuming doesn't restart the audio.
         // (The actual play() call happens in an effect — see below.)
-        setLottieSpeed(LOTTIE_NATIVE_SECONDS / duration);
+        setLottieSpeed(selectedVisualization.nativeSeconds / duration);
         const [fromFrame, toFrame] = animationRange;
         const elapsedFraction = (duration - remaining) / duration;
         setLottieSegment({
@@ -413,6 +523,7 @@ export function useBreathingSession() {
     };
   }, [
     breathingTechnique,
+    visualization,
     isVibrationEnabled,
     isRunning,
     isSoundEnabled,
@@ -445,6 +556,8 @@ export function useBreathingSession() {
   return {
     lottieRef,
     lottieSpeed,
+    // the selected visualization's animation, rendered by the screen's LottieView
+    visualizationSource: selectedVisualization.source,
     progress,
     breathingTechnique,
     sessionDuration,
