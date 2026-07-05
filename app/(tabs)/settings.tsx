@@ -2,6 +2,7 @@ import { StyleSheet, Pressable } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { GradientBackground } from "@/components/GradientBackground";
 import { useTheme } from "@react-navigation/native";
 import {
   STORAGE_KEYS,
@@ -41,7 +42,8 @@ export default function SettingsScreen() {
   }, []);
 
   return (
-    <ThemedView type="scrollable">
+    <GradientBackground>
+      <ThemedView type="scrollable" style={styles.scroll}>
       <ThemedView style={styles.container}>
         {/* Voice Guidance Selection */}
         <ThemedView style={[styles.optionRow, { backgroundColor: colors.card }]}>
@@ -101,11 +103,16 @@ export default function SettingsScreen() {
           </Pressable>
         </ThemedView>
       </ThemedView>
-    </ThemedView>
+      </ThemedView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
+  // let the GradientBackground behind the ScrollView show through
+  scroll: {
+    backgroundColor: "transparent",
+  },
   container: {
     padding: 20,
     paddingTop: 30,

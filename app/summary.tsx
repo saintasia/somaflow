@@ -1,6 +1,7 @@
 import { Image, StyleSheet, Pressable } from 'react-native';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
+import { GradientBackground } from '@/components/GradientBackground';
 import { StatCard } from '@/components/StatCard';
 import { useEffect, useState } from 'react';
 import { techniques } from '@/constants/techniques';
@@ -33,7 +34,8 @@ export default function SummaryScreen() {
   }, []);
 
   return (
-    <ThemedView type="scrollable" style={styles.container}>
+    <GradientBackground>
+      <ThemedView type="scrollable" style={styles.container}>
       <Image source={require("@/assets/images/party-popper.png")} style={{ width: 97, height: 100, alignSelf: 'center' }} />
       <ThemedView style={[styles.card, { backgroundColor: colors.card }]}>
         <ThemedText type="subtitle">Great job!</ThemedText>
@@ -64,7 +66,8 @@ export default function SummaryScreen() {
       >
         <ThemedText type="subtitle" style={{ color: 'white' }}>Go Home</ThemedText>
       </Pressable>
-    </ThemedView>
+      </ThemedView>
+    </GradientBackground>
   );
 }
 
@@ -76,8 +79,9 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: 'transparent',
   },
+  // card padding is 16 app-wide (StatCard, settings rows, progress cards)
   card: {
-    padding: 20,
+    padding: 16,
     borderRadius: 10,
     marginTop: 20,
     flexDirection: 'column',

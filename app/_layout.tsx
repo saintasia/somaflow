@@ -1,5 +1,5 @@
 import { ThemeProvider } from '@react-navigation/native';
-import { LightTheme, DarkTheme } from "@/constants/Theme";
+import { LightTheme, DarkTheme, FloatingSurface } from "@/constants/Theme";
 import { Stack } from 'expo-router/stack';
 import { useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
@@ -8,7 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Feather } from '@expo/vector-icons';
-import { Pressable } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors'
 import { preloadBreathingAudio } from '@/hooks/useBreathingSession';
 
@@ -56,11 +56,15 @@ export default function RootLayout() {
             headerShown: false,
           }}
           />
-        {/* Breathing Screen - Uses Stack */}
+        {/* Breathing Screen - Uses Stack. The session visuals own the whole
+            screen: no bar, no title, no shadow — just a floating close chip
+            over the gradient. */}
         <Stack.Screen
           name="breathing"
           options={{
-            headerTitle: 'Breathing',
+            headerTransparent: true,
+            headerShadowVisible: false,
+            headerTitle: '',
             headerLeft: () => (
               <Pressable
                 // back() pops this screen, guaranteeing it unmounts and its
@@ -72,10 +76,24 @@ export default function RootLayout() {
                   router.canGoBack() ? router.back() : router.navigate("/")
                 }
                 // bug in React native doesn't allow onPress to work: https://github.com/expo/expo/issues/33093
-                style={{ marginRight: 14 }}
-                hitSlop={40}
+                hitSlop={16}
+                accessibilityRole="button"
+                accessibilityLabel="End session and go back"
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  marginLeft: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor:
+                    FloatingSurface[colorScheme === 'dark' ? 'dark' : 'light'],
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: (colorScheme === 'dark' ? DarkTheme : LightTheme)
+                    .colors.border,
+                }}
               >
-                <Feather name="chevron-left" size={40} color={colorScheme === 'dark' ?  Colors.dark.text : Colors.light.text} />
+                <Feather name="x" size={22} color={colorScheme === 'dark' ?  Colors.dark.text : Colors.light.text} />
               </Pressable>
             ),
           }}

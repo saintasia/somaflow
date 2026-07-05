@@ -1,47 +1,36 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Feather } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { Colors } from '@/constants/Colors';
+import { FloatingTabBar } from '@/components/FloatingTabBar';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const insets = useSafeAreaInsets();
-
   return (
     <Tabs
+      // transparent floating bar with a sliding active-tab highlight — all
+      // the bar's look and positioning lives in FloatingTabBar
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        tabBarInactiveTintColor: Colors[colorScheme ?? 'light'].tabIconDefault,
         headerShown: false, // no top bar on pages with footer nav
-        tabBarStyle: {
-          backgroundColor: Colors[colorScheme ?? 'light'].background,
-          // a fixed height must include the bottom inset, or the Android
-          // gesture bar / iOS home indicator overlays the tab bar
-          height: 64 + insets.bottom,
-          paddingTop: 8,
-        },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Breathe',
-          tabBarIcon: ({ color }) => <Feather name="wind" size={26} color={color} />,
+          tabBarIcon: ({ color, size }) => <Feather name="wind" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color }) => <Feather name="calendar" size={26} color={color} />,
+          tabBarIcon: ({ color, size }) => <Feather name="calendar" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color }) => <Feather name="settings" size={26} color={color} />,
+          tabBarIcon: ({ color, size }) => <Feather name="settings" size={size} color={color} />,
         }}
       />
     </Tabs>

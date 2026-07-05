@@ -8,3 +8,16 @@
 jest.mock("@react-native-async-storage/async-storage", () =>
   require("@react-native-async-storage/async-storage/jest/async-storage-mock"),
 );
+
+// Every screen renders inside GradientBackground (expo-linear-gradient) and
+// the breathing screen reads safe-area insets — neither native view works
+// under jest, so swap in the inert equivalents both packages recommend.
+jest.mock("expo-linear-gradient", () => {
+  const { View } = require("react-native");
+  return { LinearGradient: View };
+});
+
+jest.mock("react-native-safe-area-context", () => {
+  const mock = require("react-native-safe-area-context/jest/mock");
+  return mock.default ?? mock;
+});

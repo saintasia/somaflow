@@ -23,17 +23,32 @@ import {
 } from "@/constants/storage";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
+import { GradientBackground } from "@/components/GradientBackground";
 import { VisualizationPreview } from "@/components/VisualizationPreview";
 import { RoundIconButton } from "@/components/RoundIconButton";
 import { useRouter } from "expo-router";
 import { useTheme, useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FLOATING_TAB_CLEARANCE } from "@/constants/Theme";
 import { Feather } from "@expo/vector-icons";
 
-// Both carousels page by a fixed width (the FlatList is exactly one page
-// wide), so swipes, the chevrons, and scrollToIndex all agree on offsets.
-const VISUALIZATION_PAGE_WIDTH = 320;
+// Every control shares this width — the visualization carousel, the technique
+// and minutes rows (whose buttons pin to its left/right edges), and the
+// Start breathing button — so the screen reads as one aligned column.
+const CONTROL_WIDTH = 320;
+const VISUALIZATION_PAGE_WIDTH = CONTROL_WIDTH;
 const VISUALIZATION_PREVIEW_SIZE = 280;
-const TECHNIQUE_PAGE_WIDTH = 200;
+// The minutes carousel pages by this fixed width (the FlatList is exactly one
+// page wide), so swipes, the flanking buttons, and scrollToIndex all agree on
+// offsets. The technique carousel pages by CONTROL_WIDTH: its pages hold the
+// name and description, so a drag anywhere on either swipes it.
+const DURATION_PAGE_WIDTH = 200;
+
+// Every session length the minutes carousel offers, in order.
+const DURATION_VALUES = Array.from(
+  { length: MAX_SESSION_MINUTES - MIN_SESSION_MINUTES + 1 },
+  (_, index) => MIN_SESSION_MINUTES + index,
+);
 
 // Selection follows the page filling the viewport (fires once a settling page
 // crosses the threshold). This must stay viewability-based, NOT
@@ -45,9 +60,11 @@ const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
 export default function HomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const visualizationListRef = useRef<FlatList<Visualization>>(null);
   const techniqueListRef = useRef<FlatList<BreathingTechnique>>(null);
+  const durationListRef = useRef<FlatList<number>>(null);
 
   // The session choices made here (visualization, technique, length) persist
   // immediately so the breathing screen reads them straight from storage.
@@ -90,6 +107,16 @@ export default function HomeScreen() {
             animated: false,
           });
         }
+        const savedDurationIndex = duration - MIN_SESSION_MINUTES;
+        if (
+          savedDurationIndex >= 0 &&
+          savedDurationIndex < DURATION_VALUES.length
+        ) {
+          durationListRef.current?.scrollToIndex({
+            index: savedDurationIndex,
+            animated: false,
+          });
+        }
       });
 
       return () => {
@@ -110,12 +137,20 @@ export default function HomeScreen() {
     saveSetting(STORAGE_KEYS.technique, option);
   };
 
+  const selectDuration = (minutes: number) => {
+    interactedRef.current = true;
+    setSessionDuration(minutes);
+    saveSetting(STORAGE_KEYS.duration, formatDuration(minutes));
+  };
+
   // The FlatList forbids swapping onViewableItemsChanged between renders, so
-  // both handlers are created once and read the live selection from refs.
+  // the handlers are created once and read the live selection from refs.
   const visualizationRef = useRef(visualization);
   visualizationRef.current = visualization;
   const breathingTechniqueRef = useRef(breathingTechnique);
   breathingTechniqueRef.current = breathingTechnique;
+  const sessionDurationRef = useRef(sessionDuration);
+  sessionDurationRef.current = sessionDuration;
 
   const handleVisualizationViewable = useRef(
     ({ viewableItems }: { viewableItems: ViewToken<Visualization>[] }) => {
@@ -135,6 +170,15 @@ export default function HomeScreen() {
     },
   ).current;
 
+  const handleDurationViewable = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken<number>[] }) => {
+      const minutes = viewableItems.find((token) => token.isViewable)?.item;
+      if (minutes && minutes !== sessionDurationRef.current) {
+        selectDuration(minutes);
+      }
+    },
+  ).current;
+
   // the accessible < > alternative to swiping the technique carousel
   const stepTechnique = (delta: number) => {
     const index = techniqueIndex + delta;
@@ -144,20 +188,32 @@ export default function HomeScreen() {
     techniqueListRef.current?.scrollToIndex({ index, animated: true });
   };
 
+  // the accessible ± alternative to swiping the minutes carousel
   const adjustDuration = (delta: number) => {
-    interactedRef.current = true;
     const next = Math.min(
       MAX_SESSION_MINUTES,
       Math.max(MIN_SESSION_MINUTES, sessionDuration + delta),
     );
     if (next === sessionDuration) return;
-    setSessionDuration(next);
-    saveSetting(STORAGE_KEYS.duration, formatDuration(next));
+    selectDuration(next);
+    durationListRef.current?.scrollToIndex({
+      index: next - MIN_SESSION_MINUTES,
+      animated: true,
+    });
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">SomaFlow</ThemedText>
+    <GradientBackground
+      style={[
+        styles.container,
+        // the tab bar floats over the screen, so keep the bottom of the
+        // column (the Start button) clear of it
+        { paddingBottom: insets.bottom + FLOATING_TAB_CLEARANCE },
+      ]}
+    >
+      <ThemedText type="title" style={{ marginTop: insets.top + 16 }}>
+        SomaFlow
+      </ThemedText>
 
       {/* Visualization picker — swipe between session animations */}
       <ThemedView style={styles.section}>
@@ -222,64 +278,97 @@ export default function HomeScreen() {
         </ThemedView>
       </ThemedView>
 
-      {/* Technique picker — swipe or use the chevrons */}
-      <ThemedView style={styles.section}>
-        <ThemedView style={styles.techniqueRow}>
+      {/* Technique picker — a drag anywhere on the name or description
+          swipes it; the chevrons float over the name row's edges */}
+      <ThemedView style={styles.techniqueBlock}>
+        <FlatList
+          ref={techniqueListRef}
+          data={TECHNIQUE_OPTIONS}
+          keyExtractor={(option) => option}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.techniqueList}
+          getItemLayout={(_, index) => ({
+            length: CONTROL_WIDTH,
+            offset: CONTROL_WIDTH * index,
+            index,
+          })}
+          onViewableItemsChanged={handleTechniqueViewable}
+          viewabilityConfig={VIEWABILITY_CONFIG}
+          extraData={breathingTechnique}
+          renderItem={({ item }) => (
+            <View
+              style={styles.techniquePage}
+              accessible
+              accessibilityState={{ selected: item === breathingTechnique }}
+            >
+              <View style={styles.techniqueNameRow}>
+                <ThemedText type="subtitle">{item}</ThemedText>
+              </View>
+              <ThemedText style={styles.techniqueDescription}>
+                {techniques[item].description}
+              </ThemedText>
+            </View>
+          )}
+        />
+        <View style={styles.chevronLeft}>
           <RoundIconButton
             icon="chevron-left"
             accessibilityLabel="Previous technique"
             onPress={() => stepTechnique(-1)}
             disabled={techniqueIndex <= 0}
           />
-          <FlatList
-            ref={techniqueListRef}
-            data={TECHNIQUE_OPTIONS}
-            keyExtractor={(option) => option}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            style={styles.techniqueList}
-            getItemLayout={(_, index) => ({
-              length: TECHNIQUE_PAGE_WIDTH,
-              offset: TECHNIQUE_PAGE_WIDTH * index,
-              index,
-            })}
-            onViewableItemsChanged={handleTechniqueViewable}
-            viewabilityConfig={VIEWABILITY_CONFIG}
-            extraData={breathingTechnique}
-            renderItem={({ item }) => (
-              <View
-                style={styles.techniquePage}
-                accessible
-                accessibilityState={{ selected: item === breathingTechnique }}
-              >
-                <ThemedText type="subtitle">{item}</ThemedText>
-              </View>
-            )}
-          />
+        </View>
+        <View style={styles.chevronRight}>
           <RoundIconButton
             icon="chevron-right"
             accessibilityLabel="Next technique"
             onPress={() => stepTechnique(1)}
             disabled={techniqueIndex >= TECHNIQUE_OPTIONS.length - 1}
           />
-        </ThemedView>
-        <ThemedText style={styles.techniqueDescription}>
-          {techniques[breathingTechnique].description}
-        </ThemedText>
+        </View>
       </ThemedView>
 
-      {/* Session length — ±1 minute */}
-      <ThemedView style={styles.durationRow}>
+      {/* Session length — swipe the minutes or step ±1 */}
+      <ThemedView style={styles.pickerRow}>
         <RoundIconButton
           icon="minus"
           accessibilityLabel="Decrease session length"
           onPress={() => adjustDuration(-1)}
           disabled={sessionDuration <= MIN_SESSION_MINUTES}
         />
-        <ThemedText type="title" style={styles.durationText}>
-          {sessionDuration} min
-        </ThemedText>
+        <FlatList
+          ref={durationListRef}
+          data={DURATION_VALUES}
+          keyExtractor={(minutes) => String(minutes)}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.durationList}
+          getItemLayout={(_, index) => ({
+            length: DURATION_PAGE_WIDTH,
+            offset: DURATION_PAGE_WIDTH * index,
+            index,
+          })}
+          // the default selection (5 min) isn't the first page, so the list
+          // must start there — otherwise the initial viewability callback
+          // would "select" 1 min and overwrite the saved length
+          initialScrollIndex={sessionDuration - MIN_SESSION_MINUTES}
+          onViewableItemsChanged={handleDurationViewable}
+          viewabilityConfig={VIEWABILITY_CONFIG}
+          extraData={sessionDuration}
+          renderItem={({ item }) => (
+            <View
+              style={styles.durationPage}
+              accessible
+              accessibilityLabel={`${item} minute session`}
+              accessibilityState={{ selected: item === sessionDuration }}
+            >
+              <ThemedText type="title">{item} min</ThemedText>
+            </View>
+          )}
+        />
         <RoundIconButton
           icon="plus"
           accessibilityLabel="Increase session length"
@@ -293,11 +382,11 @@ export default function HomeScreen() {
         style={[styles.button, { backgroundColor: colors.primary }]}
       >
         <ThemedText type="subtitle" style={{ color: "white" }}>
-          Go to Breathing
+          Start breathing
         </ThemedText>
         <Feather name="play" size={24} color="white" />
       </Pressable>
-    </ThemedView>
+    </GradientBackground>
   );
 }
 
@@ -337,41 +426,65 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  techniqueRow: {
+  // the minutes row: fixed width with the ± buttons pinned to the
+  // leftmost/rightmost edges, so it lines up with the technique block's
+  // chevrons and the Start button as one column
+  pickerRow: {
+    width: CONTROL_WIDTH,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    justifyContent: "space-between",
+    backgroundColor: "transparent",
+  },
+  techniqueBlock: {
+    width: CONTROL_WIDTH,
     backgroundColor: "transparent",
   },
   techniqueList: {
-    width: TECHNIQUE_PAGE_WIDTH,
+    width: CONTROL_WIDTH,
     flexGrow: 0,
   },
   techniquePage: {
-    width: TECHNIQUE_PAGE_WIDTH,
-    height: 44,
+    width: CONTROL_WIDTH,
     alignItems: "center",
+    gap: 4,
+  },
+  // same height as the RoundIconButton chevrons overlaying its edges
+  techniqueNameRow: {
+    height: 44,
     justifyContent: "center",
+  },
+  chevronLeft: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+  },
+  chevronRight: {
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
   // minHeight (not height, which clipped 3-line descriptions) keeps the
   // layout steady across techniques while letting long text show fully
   techniqueDescription: {
+    paddingHorizontal: 16,
     textAlign: "center",
-    marginHorizontal: 24,
     minHeight: 76,
   },
-  durationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
-    backgroundColor: "transparent",
+  durationList: {
+    width: DURATION_PAGE_WIDTH,
+    flexGrow: 0,
   },
-  durationText: {
-    minWidth: 120,
-    textAlign: "center",
+  durationPage: {
+    width: DURATION_PAGE_WIDTH,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   button: {
-    padding: 12,
+    width: CONTROL_WIDTH,
+    marginTop: 16,
+    paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 100,
     flexDirection: "row",

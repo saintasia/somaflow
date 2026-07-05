@@ -86,24 +86,34 @@ test("increases session length by one minute and saves it", () => {
 });
 
 test("decreases session length by one minute and saves it", () => {
-  const { getByLabelText, getByText } = render(<HomeScreen />);
+  const { getByLabelText } = render(<HomeScreen />);
 
   fireEvent.press(getByLabelText("Decrease session length"));
 
-  expect(getByText("4 min")).toBeTruthy();
+  // the minutes are a windowed FlatList and jest fires no layout/scroll
+  // events, so pages below the initial "5 min" window never render — assert
+  // the save instead of the page text
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("sessionDuration", "4min");
 });
 
 test("does not decrease session length below the minimum", () => {
-  const { getByLabelText, getByText } = render(<HomeScreen />);
+  const { getByLabelText } = render(<HomeScreen />);
   const decrease = getByLabelText("Decrease session length");
 
-  // default is 5 min; four presses reach the 1 min floor
+  // default is 5 min; six presses pass the 1 min floor
   for (let i = 0; i < 6; i++) {
     fireEvent.press(decrease);
   }
 
-  expect(getByText("1 min")).toBeTruthy();
+  // the saves stop at the floor ("1 min" page text isn't rendered — see the
+  // windowing note in the decrease test above)
+  const durationSaves = (AsyncStorage.setItem as jest.Mock).mock.calls.filter(
+    ([key]) => key === "sessionDuration"
+  );
+  expect(durationSaves[durationSaves.length - 1]).toEqual([
+    "sessionDuration",
+    "1min",
+  ]);
   expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
     "sessionDuration",
     "0min"

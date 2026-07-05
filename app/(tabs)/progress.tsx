@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { GradientBackground } from "@/components/GradientBackground";
 import { StatCard } from "@/components/StatCard";
 import { useTheme } from "@react-navigation/native";
 import { loadStats, type Session } from "@/constants/storage";
@@ -45,7 +46,8 @@ export default function ProgressScreen() {
   }, []);
 
   return (
-    <ThemedView type="scrollable" style={styles.container}>
+    <GradientBackground>
+      <ThemedView type="scrollable" style={styles.container}>
       {/* Total Sessions */}
       <StatCard
         label="Sessions so far"
@@ -72,10 +74,18 @@ export default function ProgressScreen() {
         </ThemedView>
       </StatCard>
 
-      {/* Last 20 Sessions */}
-      <ThemedView style={{ marginTop: 40, marginBottom: 80 }}>
+      {/* Last 20 Sessions — transparent wrappers (a default ThemedView would
+          paint a flat block over the gradient), with enough bottom margin to
+          scroll the last card clear of the floating tab pill */}
+      <ThemedView
+        style={{
+          marginTop: 40,
+          marginBottom: 120,
+          backgroundColor: "transparent",
+        }}
+      >
         <ThemedText type="subtitle">Previous sessions:</ThemedText>
-        <ThemedView>
+        <ThemedView style={{ backgroundColor: "transparent" }}>
           {sessionHistory.length > 0 ? (
             sessionHistory.slice(0, 20).map((session, index) => (
               <ThemedView key={index} style={[styles.card, { backgroundColor: colors.card }]}>
@@ -92,7 +102,8 @@ export default function ProgressScreen() {
           )}
         </ThemedView>
       </ThemedView>
-    </ThemedView>
+      </ThemedView>
+    </GradientBackground>
   );
 }
 
@@ -120,8 +131,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  // card padding is 16 app-wide (StatCard, settings rows, summary card)
   card: {
-    padding: 20,
+    padding: 16,
     borderRadius: 10,
     marginTop: 10,
     flexDirection: 'column',

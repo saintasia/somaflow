@@ -1,14 +1,17 @@
 import { StyleSheet, Animated, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { GradientBackground } from "@/components/GradientBackground";
 import { techniques } from "@/constants/techniques";
 import { useTheme } from "@react-navigation/native";
 import { useBreathingSession } from "@/hooks/useBreathingSession";
 
 export default function BreathingScreen() {
   const { colors, dark } = useTheme();
+  const insets = useSafeAreaInsets();
   const {
     lottieRef,
     lottieSpeed,
@@ -25,7 +28,10 @@ export default function BreathingScreen() {
   } = useBreathingSession();
 
   return (
-    <ThemedView style={styles.container}>
+    <GradientBackground style={styles.container}>
+      {/* Everything except the footnote centers in the space above it, so
+          the footnote card can never overlap the Start/Pause button */}
+      <ThemedView style={styles.sessionArea}>
       {/* Lottie Animation — the focal point of the screen */}
       <ThemedView style={styles.animationContainer}>
         {sessionActive && (
@@ -76,6 +82,7 @@ export default function BreathingScreen() {
           width: "100%",
           flexDirection: "row",
           justifyContent: "center",
+          backgroundColor: "transparent",
         }}
       >
         {elapsedTime === 0 && !isRunning && (
@@ -125,8 +132,20 @@ export default function BreathingScreen() {
         </ThemedText>
       </Pressable>
 
-      {/* Technique footnote — understated, pinned to the bottom */}
-      <ThemedView style={styles.footnote}>
+      </ThemedView>
+
+      {/* Technique footnote — an understated card kept above the bottom
+          gesture area (insets keep it clear of e.g. the Pixel's nav bar) */}
+      <ThemedView
+        style={[
+          styles.footnote,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            marginBottom: insets.bottom + 8,
+          },
+        ]}
+      >
         <ThemedText type="defaultSemiBold" style={styles.footnoteText}>
           {breathingTechnique}
         </ThemedText>
@@ -134,7 +153,7 @@ export default function BreathingScreen() {
           {techniques[breathingTechnique].description}
         </ThemedText>
       </ThemedView>
-    </ThemedView>
+    </GradientBackground>
   );
 }
 
@@ -142,16 +161,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: "transparent",
+  },
+  sessionArea: {
+    flex: 1,
+    alignSelf: "stretch",
     alignItems: "center",
     justifyContent: "center",
     gap: 20,
     backgroundColor: "transparent",
-    position: "relative",
   },
   animationContainer: {
     height: 380,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "transparent",
   },
   animation: {
     width: 300,
@@ -188,13 +212,14 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   footnote: {
-    position: "absolute",
-    bottom: 16,
-    left: 32,
-    right: 32,
+    alignSelf: "stretch",
+    marginHorizontal: 8,
     alignItems: "center",
     gap: 2,
-    backgroundColor: "transparent",
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   footnoteText: {
     fontSize: 13,

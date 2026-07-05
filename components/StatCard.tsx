@@ -22,8 +22,12 @@ export function StatCard({ label, description, value, children, style }: StatCar
 
   return (
     <ThemedView style={[styles.card, { backgroundColor: colors.card }, style]}>
-      <ThemedView style={[styles.header, { backgroundColor: colors.card }]}>
-        <ThemedView style={[styles.textColumn, { backgroundColor: colors.card }]}>
+      {/* inner views must stay transparent: the card color is translucent,
+          so nested layers would stack into darker patches */}
+      <ThemedView style={[styles.header, { backgroundColor: "transparent" }]}>
+        <ThemedView
+          style={[styles.textColumn, { backgroundColor: "transparent" }]}
+        >
           <ThemedText type="subtitle">{label}</ThemedText>
           <ThemedText>{description}</ThemedText>
         </ThemedView>
@@ -37,8 +41,9 @@ export function StatCard({ label, description, value, children, style }: StatCar
 }
 
 const styles = StyleSheet.create({
+  // card padding is 16 app-wide (settings rows, progress + summary cards)
   card: {
-    padding: 20,
+    padding: 16,
     borderRadius: 10,
     marginTop: 10,
     flexDirection: "column",
