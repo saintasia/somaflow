@@ -11,7 +11,9 @@ export const LightTheme: Theme = {
     // background gradient they sit on (a solid tint would match some stops
     // and clash with others). Don't nest card-on-card — the tints stack.
     card: "rgba(44, 107, 128, 0.10)",
-    notification: "#FF0000",
+    // subdued rose for destructive actions and error states (delete technique,
+    // name-taken) — a pure red fought the calm aqua palette
+    notification: "#B85C72",
   },
 };
 
@@ -24,7 +26,8 @@ export const DarkTheme: Theme = {
     border: "#3A525C",
     // see the LightTheme card note — darker than any gradient stop
     card: "rgba(8, 18, 24, 0.35)",
-    notification: "#FF0000",
+    // see the LightTheme notification note — lifted for dark backgrounds
+    notification: "#E5A3B3",
   },
 };
 
@@ -43,6 +46,14 @@ export const BackgroundGradients = {
 export const FloatingSurface = {
   light: "rgba(232, 247, 247, 0.94)",
   dark: "rgba(34, 58, 68, 0.94)",
+} as const;
+
+// Muted text — the theme text color at reduced strength, for input
+// placeholders and hints. Pre-mixed per scheme because RN color props can't
+// carry a separate opacity.
+export const MutedText = {
+  light: "rgba(44, 107, 128, 0.6)",
+  dark: "rgba(210, 233, 241, 0.6)",
 } as const;
 
 // Rounded square behind the active tab (icon + label) — the tab bar itself
