@@ -1,6 +1,6 @@
 export const techniques = {
   "Resonant": {
-    description: "Improve Long COVID, CFS and Dysautonomia symptoms by enhancing autonomic function",
+    description: "A slow, steady rhythm to settle your autonomic nervous system",
     pattern:{ inhale: 4, hold: 0, exhale: 6, hold2: 0 },
   },
   "4-7-8": {

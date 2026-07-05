@@ -5,10 +5,15 @@
 // suffix, JSON-encoded booleans) are defined in exactly one place.
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { techniques, type BreathingTechnique } from "@/constants/techniques";
+import {
+  VISUALIZATION_OPTIONS,
+  type Visualization,
+} from "@/constants/visualizations";
 
 export const STORAGE_KEYS = {
   technique: "breathingTechnique",
   duration: "sessionDuration",
+  visualization: "breathingVisualization",
   soundEnabled: "isSoundEnabled",
   vibrationEnabled: "isVibrationEnabled",
   voice: "voiceGuidance",
@@ -30,6 +35,7 @@ export type Session = {
 export type Settings = {
   technique: BreathingTechnique;
   duration: number; // minutes
+  visualization: Visualization;
   isSoundEnabled: boolean;
   isVibrationEnabled: boolean;
   voice: VoiceOption;
@@ -38,6 +44,7 @@ export type Settings = {
 const DEFAULT_SETTINGS: Settings = {
   technique: "Resonant",
   duration: 5,
+  visualization: "circle",
   isSoundEnabled: true,
   isVibrationEnabled: true,
   voice: "female",
@@ -59,17 +66,24 @@ export const formatDuration = (minutes: number): string => `${minutes}min`;
 // Load all persisted settings at once, applying defaults for anything
 // not yet stored. Used by the breathing screen and mirrored on the home tab.
 export const loadSettings = async (): Promise<Settings> => {
-  const [technique, duration, sound, vibration, voice] = await Promise.all([
-    AsyncStorage.getItem(STORAGE_KEYS.technique),
-    AsyncStorage.getItem(STORAGE_KEYS.duration),
-    AsyncStorage.getItem(STORAGE_KEYS.soundEnabled),
-    AsyncStorage.getItem(STORAGE_KEYS.vibrationEnabled),
-    AsyncStorage.getItem(STORAGE_KEYS.voice),
-  ]);
+  const [technique, duration, visualization, sound, vibration, voice] =
+    await Promise.all([
+      AsyncStorage.getItem(STORAGE_KEYS.technique),
+      AsyncStorage.getItem(STORAGE_KEYS.duration),
+      AsyncStorage.getItem(STORAGE_KEYS.visualization),
+      AsyncStorage.getItem(STORAGE_KEYS.soundEnabled),
+      AsyncStorage.getItem(STORAGE_KEYS.vibrationEnabled),
+      AsyncStorage.getItem(STORAGE_KEYS.voice),
+    ]);
 
   return {
     technique: (technique as BreathingTechnique) || DEFAULT_SETTINGS.technique,
     duration: parseDuration(duration, DEFAULT_SETTINGS.duration),
+    visualization: VISUALIZATION_OPTIONS.includes(
+      visualization as Visualization
+    )
+      ? (visualization as Visualization)
+      : DEFAULT_SETTINGS.visualization,
     isSoundEnabled: sound ? JSON.parse(sound) : DEFAULT_SETTINGS.isSoundEnabled,
     isVibrationEnabled: vibration
       ? JSON.parse(vibration)
@@ -122,7 +136,11 @@ export const loadStats = async (): Promise<{
   };
 };
 
-// The technique and duration choices offered in Settings. Techniques derive
-// from constants/techniques.ts so adding one is a single-file change.
+// The technique choices offered on the Breathe tab. Derived from
+// constants/techniques.ts so adding a technique is a single-file change.
 export const TECHNIQUE_OPTIONS = Object.keys(techniques) as BreathingTechnique[];
-export const DURATION_OPTIONS = [2, 5, 10, 15, 20];
+
+// Session length is free-form minutes picked with the Breathe tab's ±1min
+// stepper, bounded here.
+export const MIN_SESSION_MINUTES = 1;
+export const MAX_SESSION_MINUTES = 60;

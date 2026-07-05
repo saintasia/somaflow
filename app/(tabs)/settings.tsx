@@ -1,17 +1,14 @@
 import { StyleSheet, Pressable } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@react-navigation/native";
 import {
   STORAGE_KEYS,
-  TECHNIQUE_OPTIONS,
-  DURATION_OPTIONS,
   VOICE_OPTIONS,
   type VoiceOption,
   loadSettings,
   saveSetting,
-  formatDuration,
 } from "@/constants/storage";
 
 // Stored voice values are lowercase; capitalize them for the pill labels.
@@ -21,19 +18,22 @@ const voiceLabel = (option: VoiceOption) =>
 export default function SettingsScreen() {
   const { colors } = useTheme();
 
-  // State for settings. Duration is kept as its stored "10min" string here so
-  // it can be compared directly against the pill labels.
-  const [breathingTechnique, setBreathingTechnique] = useState("Resonant");
-  const [sessionDuration, setSessionDuration] = useState("10min");
+  // State for settings. Technique, session length, and visualization moved to
+  // the Breathe tab — this screen owns the sound/voice/vibration preferences.
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
   const [voice, setVoice] = useState<VoiceOption>("female");
 
+  // A tap can land before the mount-time load below resolves; without this
+  // guard the late resolve overwrites the tapped state, so the toggle shows
+  // one value while storage holds the other (sessions then go silent "for no
+  // reason"). Any interaction wins over an in-flight load.
+  const interactedRef = useRef(false);
+
   // Load saved preferences on app start
   useEffect(() => {
     loadSettings().then((settings) => {
-      setBreathingTechnique(settings.technique);
-      setSessionDuration(formatDuration(settings.duration));
+      if (interactedRef.current) return;
       setIsSoundEnabled(settings.isSoundEnabled);
       setIsVibrationEnabled(settings.isVibrationEnabled);
       setVoice(settings.voice);
@@ -43,62 +43,16 @@ export default function SettingsScreen() {
   return (
     <ThemedView type="scrollable">
       <ThemedView style={styles.container}>
-        {/* Breathing Technique Selection */}
-        <ThemedView style={[styles.optionRow, { backgroundColor: colors.card }]}>
-          <ThemedText type="subtitle">Default technique</ThemedText>
-          <ThemedText>Set up your default breathing technique here</ThemedText>
-          <ThemedView style={styles.pillContainer}>
-            {TECHNIQUE_OPTIONS.map((option) => (
-              <Pressable
-                key={option}
-                onPress={() => {
-                  setBreathingTechnique(option);
-                  saveSetting(STORAGE_KEYS.technique, option);
-                }}
-                style={[styles.pill, { backgroundColor: breathingTechnique === option ? colors.primary : colors.border }]}
-              >
-                <ThemedText type="defaultSemiBold" lightColor={breathingTechnique === option ? "white" : colors.text}>
-                  {option}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </ThemedView>
-        </ThemedView>
-
-        {/* Session Duration Selection */}
-        <ThemedView style={[styles.optionRow, { backgroundColor: colors.card }]}>
-          <ThemedText type="subtitle">Default duration</ThemedText>
-          <ThemedText>Set up your default session length</ThemedText>
-          <ThemedView style={styles.pillContainer}>
-            {DURATION_OPTIONS.map((minutes) => {
-              const option = formatDuration(minutes);
-              return (
-                <Pressable
-                  key={option}
-                  onPress={() => {
-                    setSessionDuration(option);
-                    saveSetting(STORAGE_KEYS.duration, option);
-                  }}
-                  style={[styles.pill, { backgroundColor: sessionDuration === option ? colors.primary : colors.border }]}
-                >
-                  <ThemedText type="defaultSemiBold" lightColor={sessionDuration === option ? "white" : colors.text}>
-                    {option}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </ThemedView>
-        </ThemedView>
-
         {/* Voice Guidance Selection */}
         <ThemedView style={[styles.optionRow, { backgroundColor: colors.card }]}>
           <ThemedText type="subtitle">Voice guidance</ThemedText>
-          <ThemedText>Spoken cues for each breath, played over the music</ThemedText>
+          <ThemedText>Spoken cues for each breath, played over the background sound</ThemedText>
           <ThemedView style={styles.pillContainer}>
             {VOICE_OPTIONS.map((option) => (
               <Pressable
                 key={option}
                 onPress={() => {
+                  interactedRef.current = true;
                   setVoice(option);
                   saveSetting(STORAGE_KEYS.voice, option);
                 }}
@@ -114,9 +68,10 @@ export default function SettingsScreen() {
 
         {/* Other Settings */}
         <ThemedView style={{ ...styles.settingRow, backgroundColor: colors.card }}>
-          <ThemedText>Sound</ThemedText>
+          <ThemedText>Background sound</ThemedText>
           <Pressable
             onPress={() => {
+              interactedRef.current = true;
               setIsSoundEnabled(!isSoundEnabled);
               saveSetting(STORAGE_KEYS.soundEnabled, !isSoundEnabled);
             }}
@@ -133,6 +88,7 @@ export default function SettingsScreen() {
           <ThemedText>Phone Vibration</ThemedText>
           <Pressable
             onPress={() => {
+              interactedRef.current = true;
               setIsVibrationEnabled(!isVibrationEnabled);
               saveSetting(STORAGE_KEYS.vibrationEnabled, !isVibrationEnabled);
             }}

@@ -12,6 +12,7 @@ export default function BreathingScreen() {
   const {
     lottieRef,
     lottieSpeed,
+    visualizationSource,
     progress,
     breathingTechnique,
     sessionDuration,
@@ -25,50 +26,80 @@ export default function BreathingScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">{breathingTechnique}</ThemedText>
-      {isRunning ? (
-        <ThemedView style={styles.topContainer}>
-          <ThemedText type="default" style={{textAlign: "center"}}>Follow the animation, you can change settings anytime.</ThemedText>
-        </ThemedView>
-      ) : (
-        <ThemedView style={styles.topContainer}>
-          <ThemedText type="default" style={{textAlign: "center"}}>{techniques[breathingTechnique].description}</ThemedText>
-        </ThemedView>
-      )}
-
-      {/* Lottie Animation */}
+      {/* Lottie Animation — the focal point of the screen */}
       <ThemedView style={styles.animationContainer}>
-        { sessionActive && <ThemedText type="title" style={{ position: 'absolute', top: 0, color: colors.primary}}>{currentPhase}</ThemedText>}
+        {sessionActive && (
+          <ThemedText
+            type="title"
+            style={{ position: "absolute", top: 0, color: colors.primary }}
+          >
+            {currentPhase}
+          </ThemedText>
+        )}
 
         <LottieView
           ref={lottieRef}
-          source={require("@/assets/animations/breathing.json")}
+          source={visualizationSource}
           loop={false}
-          // lottieSpeed stretches the ~2s animation across the current phase;
+          // lottieSpeed stretches the animation across the current phase;
           // speed 0 freezes the current frame on pause (reliable on the New Architecture)
           speed={isRunning ? lottieSpeed : 0}
           style={styles.animation}
         />
 
-        { sessionActive && (
-          <ThemedView style={styles.countdownOverlay}>
-            <ThemedText type="title" style={[styles.countdownNumber, { color: dark ? colors.primary : "white" }]}>
+        {sessionActive && (
+          <ThemedView
+            style={{
+              ...styles.countdownOverlay,
+              paddingTop:
+                visualizationSource ===
+                require("@/assets/animations/shape.json")
+                  ? 140
+                  : 0,
+            }}
+          >
+            <ThemedText
+              type="title"
+              style={[
+                styles.countdownNumber,
+                { color: dark ? colors.background : colors.primary },
+              ]}
+            >
               {secondsLeft}
             </ThemedText>
           </ThemedView>
         )}
       </ThemedView>
-      <ThemedView style={{ position: "relative", width: "100%", flexDirection: "row", justifyContent: "center"}}>
-      {elapsedTime === 0 && !isRunning && (
-        <ThemedText style={{ position: "absolute", top: -20}} type="title">{sessionDuration} min session</ThemedText>
-      )}
+      <ThemedView
+        style={{
+          position: "relative",
+          width: "100%",
+          flexDirection: "row",
+          justifyContent: "center",
+        }}
+      >
+        {elapsedTime === 0 && !isRunning && (
+          <ThemedText style={{ position: "absolute", top: -20 }} type="title">
+            {sessionDuration} min session
+          </ThemedText>
+        )}
       </ThemedView>
       {/* Progress Bar */}
-      <ThemedView style={[styles.progressBarContainer, { backgroundColor: colors.border }]}>
+      <ThemedView
+        style={[
+          styles.progressBarContainer,
+          { backgroundColor: colors.border },
+        ]}
+      >
         <Animated.View
           style={[
             styles.progressBar,
-            { width: progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }) },
+            {
+              width: progress.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0%", "100%"],
+              }),
+            },
             { backgroundColor: colors.primary },
           ]}
         />
@@ -81,14 +112,28 @@ export default function BreathingScreen() {
         style={[styles.button, { backgroundColor: colors.primary }]}
       >
         <ThemedText type="subtitle" lightColor="white">
-          {(!isRunning && elapsedTime > 0) && "Continue"}
-          {(!isRunning && elapsedTime === 0) && "Start"}
+          {!isRunning && elapsedTime > 0 && "Continue"}
+          {!isRunning && elapsedTime === 0 && "Start"}
           {isRunning && "Pause"}
         </ThemedText>
         <ThemedText type="default" lightColor="white">
-        {isRunning ? <Feather name="pause" size={24} /> : <Feather name="play" size={24} />}
+          {isRunning ? (
+            <Feather name="pause" size={24} />
+          ) : (
+            <Feather name="play" size={24} />
+          )}
         </ThemedText>
       </Pressable>
+
+      {/* Technique footnote — understated, pinned to the bottom */}
+      <ThemedView style={styles.footnote}>
+        <ThemedText type="defaultSemiBold" style={styles.footnoteText}>
+          {breathingTechnique}
+        </ThemedText>
+        <ThemedText style={styles.footnoteText}>
+          {techniques[breathingTechnique].description}
+        </ThemedText>
+      </ThemedView>
     </ThemedView>
   );
 }
@@ -103,21 +148,14 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     position: "relative",
   },
-  topContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: "transparent",
-    height: 80,
-  },
   animationContainer: {
-    height: 300,
+    height: 380,
     justifyContent: "center",
     alignItems: "center",
   },
   animation: {
-    width: 220,
-    height: 220,
+    width: 300,
+    height: 300,
   },
   countdownOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -148,5 +186,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 6,
     marginTop: 10,
+  },
+  footnote: {
+    position: "absolute",
+    bottom: 16,
+    left: 32,
+    right: 32,
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: "transparent",
+  },
+  footnoteText: {
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: "center",
+    opacity: 0.75,
   },
 });

@@ -12,30 +12,17 @@ jest.mock("@react-navigation/native", () => ({
   useTheme: () => ({ colors: {} }),
 }));
 
-test("should save breathing technique when selected", async () => {
+test("should save voice guidance when selected", async () => {
   const { getByText } = render(
     <ThemeProvider value={LightTheme}>
       <SettingsScreen />
     </ThemeProvider>
   );
 
-  const resonantButton = getByText("Resonant");
-  fireEvent.press(resonantButton);
-  
-  expect(AsyncStorage.setItem).toHaveBeenCalledWith("breathingTechnique", "Resonant");
-});
+  const maleButton = getByText("Male");
+  fireEvent.press(maleButton);
 
-test("should save session duration when selected", async () => {
-  const { getByText } = render(
-    <ThemeProvider value={LightTheme}>
-      <SettingsScreen />
-    </ThemeProvider>
-  );
-
-  const tenMinButton = getByText("10min");
-  fireEvent.press(tenMinButton);
-  
-  expect(AsyncStorage.setItem).toHaveBeenCalledWith("sessionDuration", "10min");
+  expect(AsyncStorage.setItem).toHaveBeenCalledWith("voiceGuidance", "male");
 });
 
 test("should save sound setting when toggled", async () => {
