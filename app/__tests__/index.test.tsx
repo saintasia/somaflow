@@ -13,10 +13,12 @@ jest.mock("@react-navigation/native", () => ({
     require("react").useEffect(callback, [callback]),
 }));
 
-// mock navigation
-jest.mock("expo-router", () => ({
-  useRouter: jest.fn(() => ({ push: jest.fn() })),
-}));
+// mock navigation, keeping push reachable so tests can assert on it
+jest.mock("expo-router", () => {
+  const push = jest.fn();
+  return { useRouter: () => ({ push }), __push: push };
+});
+const { __push: mockPush } = jest.requireMock("expo-router");
 
 // mock the Lottie previews (a plain function component ignores the ref, so
 // VisualizationPreview's imperative play() calls are safely skipped)
@@ -94,6 +96,40 @@ test("decreases session length by one minute and saves it", () => {
   // events, so pages below the initial "5 min" window never render — assert
   // the save instead of the page text
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("sessionDuration", "4min");
+});
+
+test("opens the technique editor from the carousel's create page", () => {
+  const { getByLabelText } = render(<HomeScreen />);
+
+  fireEvent.press(getByLabelText("Create your own technique"));
+
+  expect(mockPush).toHaveBeenCalledWith("/technique-editor");
+});
+
+test("shows a saved custom technique and lets it be edited", async () => {
+  await AsyncStorage.setItem(
+    "customTechniques",
+    JSON.stringify({
+      "My Flow": {
+        description: "",
+        pattern: { inhale: 5, hold: 2, exhale: 7, hold2: 0 },
+      },
+    })
+  );
+  await AsyncStorage.setItem("breathingTechnique", "My Flow");
+
+  const { getByText, getByLabelText } = render(<HomeScreen />);
+
+  // the custom page renders, described by its pace (it has no description)
+  await waitFor(() => expect(getByText("My Flow")).toBeTruthy());
+  expect(getByText("5s in · 2s hold · 7s out")).toBeTruthy();
+
+  // and, being user-created, tapping its page opens it in the editor
+  fireEvent.press(getByLabelText("My Flow. Opens the technique editor"));
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/technique-editor",
+    params: { name: "My Flow" },
+  });
 });
 
 test("does not decrease session length below the minimum", () => {

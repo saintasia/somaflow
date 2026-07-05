@@ -21,10 +21,21 @@ jest.mock("@react-navigation/native", () => ({
   useFocusEffect: jest.fn(),
 }));
 
-// mock navigation
-jest.mock("expo-router", () => ({
-  useRouter: jest.fn(() => ({ push: jest.fn() })),
-}));
+// mock navigation, keeping push reachable so the edit flow can assert on it
+jest.mock("expo-router", () => {
+  const push = jest.fn();
+  return {
+    useRouter: () => ({
+      push,
+      replace: jest.fn(),
+      navigate: jest.fn(),
+      back: jest.fn(),
+      canGoBack: () => true,
+    }),
+    __push: push,
+  };
+});
+const { __push: mockPush } = jest.requireMock("expo-router");
 
 // mock haptics
 jest.mock("expo-haptics", () => ({
@@ -195,6 +206,30 @@ test("pause freezes clips in place and Continue resumes them", async () => {
   // continue: the frozen clip picks back up (second play call)
   fireEvent(getByText(/Continue/i), "pressIn");
   await waitFor(() => expect(music.play.mock.calls.length).toBe(2));
+});
+
+test("opens the editor for a custom technique from the session screen", async () => {
+  await AsyncStorage.setItem(
+    "customTechniques",
+    JSON.stringify({
+      "My Flow": {
+        description: "",
+        pattern: { inhale: 5, hold: 2, exhale: 7, hold2: 0 },
+      },
+    })
+  );
+  await AsyncStorage.setItem("breathingTechnique", "My Flow");
+
+  const { getByText, getByLabelText } = render(<BreathingScreen />);
+  // the technique card resolves the custom name and offers editing
+  await waitFor(() => expect(getByText("My Flow")).toBeTruthy());
+
+  fireEvent(getByLabelText("Edit My Flow"), "pressIn");
+
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: "/technique-editor",
+    params: { name: "My Flow" },
+  });
 });
 
 test("keeps Android vibration patterns above the 1s silent-drop threshold", async () => {

@@ -6,13 +6,19 @@ import * as Haptics from "expo-haptics";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import { Asset } from "expo-asset";
 import { useRouter } from "expo-router";
-import { techniques, type BreathingTechnique } from "@/constants/techniques";
+import {
+  techniques,
+  describeTechnique,
+  type BreathingTechnique,
+  type TechniqueDef,
+} from "@/constants/techniques";
 import {
   visualizations,
   type Visualization,
 } from "@/constants/visualizations";
 import {
   loadSettings,
+  loadCustomTechniques,
   addSession,
   type VoiceOption,
 } from "@/constants/storage";
@@ -173,6 +179,10 @@ export function useBreathingSession() {
   // states
   const [breathingTechnique, setBreathingTechnique] =
     useState<BreathingTechnique>("Resonant");
+  // the user's own techniques, merged over the built-ins when resolving
+  const [customTechniques, setCustomTechniques] = useState<
+    Record<string, TechniqueDef>
+  >({});
   const [sessionDuration, setSessionDuration] = useState(5);
   const [visualization, setVisualization] = useState<Visualization>("circle");
   const [isVibrationEnabled, setIsVibrationEnabled] = useState(true);
@@ -349,17 +359,37 @@ export function useBreathingSession() {
     Vibration.cancel(); // stop an in-progress Android buzz (no-op elsewhere)
   };
 
+  // (Re)resolve the saved settings and the user's custom techniques — the
+  // selected technique may be built-in or user-created. Runs at mount and on
+  // every focus: the technique editor opens over this screen, so returning
+  // from it must pick up an edit, rename, or deletion made there.
+  const refreshSettings = useCallback(() => {
+    Promise.all([loadSettings(), loadCustomTechniques()]).then(
+      ([settings, customs]) => {
+        setCustomTechniques(customs);
+        setBreathingTechnique(settings.technique);
+        setSessionDuration(settings.duration);
+        setVisualization(settings.visualization);
+        setIsVibrationEnabled(settings.isVibrationEnabled);
+        setIsSoundEnabled(settings.isSoundEnabled);
+        setVoice(settings.voice);
+      },
+    );
+  }, []);
+
   // Safety net: if the screen loses focus while still mounted (a navigation
-  // path that covers it instead of popping it), halt the session so its loop,
-  // audio, and haptics can't keep running behind another screen.
+  // path that covers it instead of popping it — e.g. the technique editor),
+  // halt the session so its loop, audio, and haptics can't keep running
+  // behind another screen; refresh the settings when focus returns.
   useFocusEffect(
     useCallback(() => {
+      refreshSettings();
       return () => {
         setIsRunning(false);
         stopSound();
         stopHaptics();
       };
-    }, []),
+    }, [refreshSettings]),
   );
 
   const handlePause = () => {
@@ -387,19 +417,16 @@ export function useBreathingSession() {
     }
   }, [lottieSegment]);
 
-  // load saved settings
+  // initial load — the focus effect above also refreshes, but tests mock
+  // useFocusEffect to a no-op, so the mount load stays explicit
   useEffect(() => {
-    loadSettings().then((settings) => {
-      setBreathingTechnique(settings.technique);
-      setSessionDuration(settings.duration);
-      setVisualization(settings.visualization);
-      setIsVibrationEnabled(settings.isVibrationEnabled);
-      setIsSoundEnabled(settings.isSoundEnabled);
-      setVoice(settings.voice);
-    });
-  }, []);
+    refreshSettings();
+  }, [refreshSettings]);
 
-  const selectedPattern = techniques[breathingTechnique] || techniques.Resonant;
+  const selectedPattern =
+    customTechniques[breathingTechnique] ||
+    techniques[breathingTechnique] ||
+    techniques.Resonant;
   // The selected Lottie animation plus its frame metadata (first/last frame,
   // native seconds), used to scale each phase's playback speed.
   const selectedVisualization =
@@ -560,6 +587,11 @@ export function useBreathingSession() {
     visualizationSource: selectedVisualization.source,
     progress,
     breathingTechnique,
+    // resolved via the merged (custom + built-in) lookup — screens must not
+    // index `techniques` by name themselves, custom names aren't in it
+    techniqueDescription: describeTechnique(selectedPattern),
+    // user-created techniques can be deleted right from the session screen
+    isCustomTechnique: breathingTechnique in customTechniques,
     sessionDuration,
     currentPhase,
     secondsLeft,

@@ -4,7 +4,11 @@
 // directly, so the key names and value formats (e.g. the "10min" duration
 // suffix, JSON-encoded booleans) are defined in exactly one place.
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { techniques, type BreathingTechnique } from "@/constants/techniques";
+import {
+  techniques,
+  type BreathingTechnique,
+  type TechniqueDef,
+} from "@/constants/techniques";
 import {
   VISUALIZATION_OPTIONS,
   type Visualization,
@@ -19,6 +23,7 @@ export const STORAGE_KEYS = {
   voice: "voiceGuidance",
   history: "breathingHistory",
   totalSessions: "totalSessions",
+  customTechniques: "customTechniques",
 } as const;
 
 // Voice guidance spoken over the music during a session ("off" keeps music only).
@@ -63,10 +68,60 @@ const parseDuration = (value: string | null, fallback: number): number => {
 
 export const formatDuration = (minutes: number): string => `${minutes}min`;
 
+// User-created techniques, stored as one JSON record keyed by name. The
+// helpers below keep the currently selected technique consistent through
+// renames and deletions, so screens never resolve a dangling name.
+export const loadCustomTechniques = async (): Promise<
+  Record<string, TechniqueDef>
+> => {
+  const json = await AsyncStorage.getItem(STORAGE_KEYS.customTechniques);
+  return json ? JSON.parse(json) : {};
+};
+
+// Create or update a custom technique. Pass `originalName` when editing: a
+// rename drops the old entry and re-points the selection if it was selected.
+export const saveCustomTechnique = async (
+  name: string,
+  def: TechniqueDef,
+  originalName?: string
+): Promise<void> => {
+  const customs = await loadCustomTechniques();
+  if (originalName && originalName !== name) {
+    delete customs[originalName];
+    const selected = await AsyncStorage.getItem(STORAGE_KEYS.technique);
+    if (selected === originalName) {
+      await AsyncStorage.setItem(STORAGE_KEYS.technique, name);
+    }
+  }
+  customs[name] = def;
+  await AsyncStorage.setItem(
+    STORAGE_KEYS.customTechniques,
+    JSON.stringify(customs)
+  );
+};
+
+// Delete a custom technique; if it was the selected one, fall back to the
+// default so the breathing screen never starts on a missing technique.
+export const deleteCustomTechnique = async (name: string): Promise<void> => {
+  const customs = await loadCustomTechniques();
+  delete customs[name];
+  await AsyncStorage.setItem(
+    STORAGE_KEYS.customTechniques,
+    JSON.stringify(customs)
+  );
+  const selected = await AsyncStorage.getItem(STORAGE_KEYS.technique);
+  if (selected === name) {
+    await AsyncStorage.setItem(
+      STORAGE_KEYS.technique,
+      DEFAULT_SETTINGS.technique
+    );
+  }
+};
+
 // Load all persisted settings at once, applying defaults for anything
 // not yet stored. Used by the breathing screen and mirrored on the home tab.
 export const loadSettings = async (): Promise<Settings> => {
-  const [technique, duration, visualization, sound, vibration, voice] =
+  const [technique, duration, visualization, sound, vibration, voice, customs] =
     await Promise.all([
       AsyncStorage.getItem(STORAGE_KEYS.technique),
       AsyncStorage.getItem(STORAGE_KEYS.duration),
@@ -74,10 +129,16 @@ export const loadSettings = async (): Promise<Settings> => {
       AsyncStorage.getItem(STORAGE_KEYS.soundEnabled),
       AsyncStorage.getItem(STORAGE_KEYS.vibrationEnabled),
       AsyncStorage.getItem(STORAGE_KEYS.voice),
+      loadCustomTechniques(),
     ]);
 
   return {
-    technique: (technique as BreathingTechnique) || DEFAULT_SETTINGS.technique,
+    // the stored name must still exist (built-in or custom) — a deleted
+    // custom technique falls back to the default
+    technique:
+      technique && (technique in techniques || technique in customs)
+        ? technique
+        : DEFAULT_SETTINGS.technique,
     duration: parseDuration(duration, DEFAULT_SETTINGS.duration),
     visualization: VISUALIZATION_OPTIONS.includes(
       visualization as Visualization

@@ -1,8 +1,11 @@
-import { View, ScrollView, type ViewProps } from 'react-native';
+import { View, ScrollView, type ScrollViewProps } from 'react-native';
 
 import { useThemeColor } from '@/hooks/useThemeColor';
 
-export type ThemedViewProps = ViewProps & {
+// ScrollViewProps (a superset of ViewProps) so the scrollable variant can
+// take ScrollView-only props like keyboardShouldPersistTaps; the default
+// variant simply ignores any it receives.
+export type ThemedViewProps = ScrollViewProps & {
   type?: 'default' | 'scrollable'
   lightColor?: string;
   darkColor?: string;

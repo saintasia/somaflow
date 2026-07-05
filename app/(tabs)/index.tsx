@@ -5,8 +5,13 @@ import {
   View,
   type ViewToken,
 } from "react-native";
-import { useState, useCallback, useRef } from "react";
-import { techniques, type BreathingTechnique } from "@/constants/techniques";
+import { useState, useCallback, useEffect, useRef } from "react";
+import {
+  techniques,
+  describeTechnique,
+  type BreathingTechnique,
+  type TechniqueDef,
+} from "@/constants/techniques";
 import {
   visualizations,
   VISUALIZATION_OPTIONS,
@@ -18,6 +23,7 @@ import {
   MIN_SESSION_MINUTES,
   MAX_SESSION_MINUTES,
   loadSettings,
+  loadCustomTechniques,
   saveSetting,
   formatDuration,
 } from "@/constants/storage";
@@ -50,6 +56,12 @@ const DURATION_VALUES = Array.from(
   (_, index) => MIN_SESSION_MINUTES + index,
 );
 
+// The technique carousel's pages: the built-in and custom techniques, then a
+// final "create your own" page that opens the technique editor.
+type TechniquePage =
+  | { kind: "technique"; name: BreathingTechnique }
+  | { kind: "create" };
+
 // Selection follows the page filling the viewport (fires once a settling page
 // crosses the threshold). This must stay viewability-based, NOT
 // onMomentumScrollEnd: react-native-web never dispatches momentum events (the
@@ -63,7 +75,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
 
   const visualizationListRef = useRef<FlatList<Visualization>>(null);
-  const techniqueListRef = useRef<FlatList<BreathingTechnique>>(null);
+  const techniqueListRef = useRef<FlatList<TechniquePage>>(null);
   const durationListRef = useRef<FlatList<number>>(null);
 
   // The session choices made here (visualization, technique, length) persist
@@ -72,8 +84,27 @@ export default function HomeScreen() {
   const [breathingTechnique, setBreathingTechnique] =
     useState<BreathingTechnique>("Resonant");
   const [sessionDuration, setSessionDuration] = useState(5);
+  // the user's own techniques, appended to the built-ins in the carousel
+  const [customTechniques, setCustomTechniques] = useState<
+    Record<string, TechniqueDef>
+  >({});
+  // which technique page is in view — unlike the selection it can also sit
+  // on the trailing "create" page, so the chevrons step relative to it
+  const [techniquePageIndex, setTechniquePageIndex] = useState(0);
+  // a scroll queued by the focus reload, performed once the pages data
+  // (including any customs) has actually committed to the FlatList
+  const pendingTechniqueScrollRef = useRef<number | null>(null);
 
-  const techniqueIndex = TECHNIQUE_OPTIONS.indexOf(breathingTechnique);
+  const techniquePages: TechniquePage[] = [
+    ...TECHNIQUE_OPTIONS.map((name) => ({ kind: "technique" as const, name })),
+    ...Object.keys(customTechniques).map((name) => ({
+      kind: "technique" as const,
+      name,
+    })),
+    { kind: "create" as const },
+  ];
+  const techniqueDef = (name: BreathingTechnique): TechniqueDef =>
+    customTechniques[name] ?? techniques[name];
 
   // Set once the user touches any control after focus. A loadSettings read
   // started on focus can resolve late (AsyncStorage on a cold start takes a
@@ -87,18 +118,23 @@ export default function HomeScreen() {
       interactedRef.current = false;
       let focused = true;
 
-      loadSettings().then(({ technique, duration, visualization: saved }) => {
+      Promise.all([loadSettings(), loadCustomTechniques()]).then(
+        ([{ technique, duration, visualization: saved }, customs]) => {
         if (!focused || interactedRef.current) return;
+        setCustomTechniques(customs);
         setBreathingTechnique(technique);
         setSessionDuration(duration);
         setVisualization(saved);
 
-        const savedTechniqueIndex = TECHNIQUE_OPTIONS.indexOf(technique);
+        const savedTechniqueIndex = [
+          ...TECHNIQUE_OPTIONS,
+          ...Object.keys(customs),
+        ].indexOf(technique);
         if (savedTechniqueIndex >= 0) {
-          techniqueListRef.current?.scrollToIndex({
-            index: savedTechniqueIndex,
-            animated: false,
-          });
+          setTechniquePageIndex(savedTechniqueIndex);
+          // the custom pages land in the FlatList on the next commit — the
+          // scroll is queued and performed by the effect below
+          pendingTechniqueScrollRef.current = savedTechniqueIndex;
         }
         const savedVisualizationIndex = VISUALIZATION_OPTIONS.indexOf(saved);
         if (savedVisualizationIndex >= 0) {
@@ -124,6 +160,18 @@ export default function HomeScreen() {
       };
     }, []),
   );
+
+  // Perform a queued technique scroll once the pages (including customs) have
+  // committed — scrolling in the same tick as setCustomTechniques could
+  // target an index the FlatList doesn't hold yet and throw.
+  useEffect(() => {
+    const index = pendingTechniqueScrollRef.current;
+    if (index == null) return;
+    if (index < techniquePages.length) {
+      techniqueListRef.current?.scrollToIndex({ index, animated: false });
+    }
+    pendingTechniqueScrollRef.current = null;
+  });
 
   const selectVisualization = (option: Visualization) => {
     interactedRef.current = true;
@@ -162,10 +210,18 @@ export default function HomeScreen() {
   ).current;
 
   const handleTechniqueViewable = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<BreathingTechnique>[] }) => {
-      const option = viewableItems.find((token) => token.isViewable)?.item;
-      if (option && option !== breathingTechniqueRef.current) {
-        selectTechnique(option);
+    ({ viewableItems }: { viewableItems: ViewToken<TechniquePage>[] }) => {
+      const token = viewableItems.find((t) => t.isViewable);
+      if (!token || token.index == null) return;
+      setTechniquePageIndex(token.index);
+      if (token.item.kind === "create") {
+        // swiping to the create page is an interaction too — a late settings
+        // load must not yank the carousel back to the saved technique
+        interactedRef.current = true;
+        return;
+      }
+      if (token.item.name !== breathingTechniqueRef.current) {
+        selectTechnique(token.item.name);
       }
     },
   ).current;
@@ -179,12 +235,17 @@ export default function HomeScreen() {
     },
   ).current;
 
-  // the accessible < > alternative to swiping the technique carousel
+  // the accessible < > alternative to swiping the technique carousel; steps
+  // through the pages (the trailing create page included, without selecting it)
   const stepTechnique = (delta: number) => {
-    const index = techniqueIndex + delta;
-    const option = TECHNIQUE_OPTIONS[index];
-    if (!option) return;
-    selectTechnique(option);
+    const index = techniquePageIndex + delta;
+    const page = techniquePages[index];
+    if (!page) return;
+    interactedRef.current = true;
+    setTechniquePageIndex(index);
+    if (page.kind === "technique") {
+      selectTechnique(page.name);
+    }
     techniqueListRef.current?.scrollToIndex({ index, animated: true });
   };
 
@@ -279,12 +340,15 @@ export default function HomeScreen() {
       </ThemedView>
 
       {/* Technique picker — a drag anywhere on the name or description
-          swipes it; the chevrons float over the name row's edges */}
+          swipes it; the chevrons float over the name row's edges. The last
+          page creates a new technique. */}
       <ThemedView style={styles.techniqueBlock}>
         <FlatList
           ref={techniqueListRef}
-          data={TECHNIQUE_OPTIONS}
-          keyExtractor={(option) => option}
+          data={techniquePages}
+          keyExtractor={(page) =>
+            page.kind === "create" ? "__create__" : page.name
+          }
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -296,28 +360,74 @@ export default function HomeScreen() {
           })}
           onViewableItemsChanged={handleTechniqueViewable}
           viewabilityConfig={VIEWABILITY_CONFIG}
-          extraData={breathingTechnique}
-          renderItem={({ item }) => (
-            <View
-              style={styles.techniquePage}
-              accessible
-              accessibilityState={{ selected: item === breathingTechnique }}
-            >
-              <View style={styles.techniqueNameRow}>
-                <ThemedText type="subtitle">{item}</ThemedText>
+          extraData={[breathingTechnique, customTechniques]}
+          renderItem={({ item }) => {
+            if (item.kind === "create") {
+              return (
+                <Pressable
+                  style={styles.techniquePage}
+                  accessibilityRole="button"
+                  accessibilityLabel="Create your own technique"
+                  onPress={() => router.push("/technique-editor")}
+                >
+                  <View style={[styles.techniqueNameRow, styles.createRow]}>
+                    <Feather name="plus" size={20} color={colors.primary} />
+                    <ThemedText type="subtitle">Create your own</ThemedText>
+                  </View>
+                  <ThemedText style={styles.techniqueDescription}>
+                    Name it and set the pace of every phase
+                  </ThemedText>
+                </Pressable>
+              );
+            }
+            const pageContent = (
+              <>
+                <View style={styles.techniqueNameRow}>
+                  <ThemedText type="subtitle">{item.name}</ThemedText>
+                </View>
+                <ThemedText style={styles.techniqueDescription}>
+                  {describeTechnique(techniqueDef(item.name))}
+                </ThemedText>
+              </>
+            );
+            // tapping a user-created technique opens it in the editor;
+            // built-ins aren't editable, so their pages aren't tappable
+            return item.name in customTechniques ? (
+              <Pressable
+                style={styles.techniquePage}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.name}. Opens the technique editor`}
+                accessibilityState={{
+                  selected: item.name === breathingTechnique,
+                }}
+                onPress={() =>
+                  router.push({
+                    pathname: "/technique-editor",
+                    params: { name: item.name },
+                  })
+                }
+              >
+                {pageContent}
+              </Pressable>
+            ) : (
+              <View
+                style={styles.techniquePage}
+                accessible
+                accessibilityState={{
+                  selected: item.name === breathingTechnique,
+                }}
+              >
+                {pageContent}
               </View>
-              <ThemedText style={styles.techniqueDescription}>
-                {techniques[item].description}
-              </ThemedText>
-            </View>
-          )}
+            );
+          }}
         />
         <View style={styles.chevronLeft}>
           <RoundIconButton
             icon="chevron-left"
             accessibilityLabel="Previous technique"
             onPress={() => stepTechnique(-1)}
-            disabled={techniqueIndex <= 0}
+            disabled={techniquePageIndex <= 0}
           />
         </View>
         <View style={styles.chevronRight}>
@@ -325,7 +435,7 @@ export default function HomeScreen() {
             icon="chevron-right"
             accessibilityLabel="Next technique"
             onPress={() => stepTechnique(1)}
-            disabled={techniqueIndex >= TECHNIQUE_OPTIONS.length - 1}
+            disabled={techniquePageIndex >= techniquePages.length - 1}
           />
         </View>
       </ThemedView>
@@ -453,6 +563,11 @@ const styles = StyleSheet.create({
   techniqueNameRow: {
     height: 44,
     justifyContent: "center",
+  },
+  createRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   chevronLeft: {
     position: "absolute",
