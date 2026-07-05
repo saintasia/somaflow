@@ -1,23 +1,27 @@
 import { StyleSheet, Animated, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
-import { techniques } from "@/constants/techniques";
+import { FloatingSurface } from "@/constants/Theme";
 import { useTheme } from "@react-navigation/native";
 import { useBreathingSession } from "@/hooks/useBreathingSession";
 
 export default function BreathingScreen() {
   const { colors, dark } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const {
     lottieRef,
     lottieSpeed,
     visualizationSource,
     progress,
     breathingTechnique,
+    techniqueDescription,
+    isCustomTechnique,
     sessionDuration,
     currentPhase,
     secondsLeft,
@@ -26,6 +30,16 @@ export default function BreathingScreen() {
     sessionActive,
     handlePause,
   } = useBreathingSession();
+
+  // Editing pushes the technique editor over this screen: the focus-loss
+  // safety net pauses the session, and the hook re-resolves the technique on
+  // refocus, so an edit/rename/delete made there shows up on return.
+  const handleEditTechnique = () => {
+    router.push({
+      pathname: "/technique-editor",
+      params: { name: breathingTechnique },
+    });
+  };
 
   return (
     <GradientBackground style={styles.container}>
@@ -37,7 +51,13 @@ export default function BreathingScreen() {
         {sessionActive && (
           <ThemedText
             type="title"
-            style={{ position: "absolute", top: 0, color: colors.primary }}
+            style={{
+              position: "absolute",
+              top: 0,
+              // primary reads as blue against the dark gradient — use the
+              // near-white text color there
+              color: dark ? colors.text : colors.primary,
+            }}
           >
             {currentPhase}
           </ThemedText>
@@ -68,7 +88,7 @@ export default function BreathingScreen() {
               type="title"
               style={[
                 styles.countdownNumber,
-                { color: dark ? colors.background : colors.primary },
+                { color: dark ? colors.background : "white" },
               ]}
             >
               {secondsLeft}
@@ -150,8 +170,29 @@ export default function BreathingScreen() {
           {breathingTechnique}
         </ThemedText>
         <ThemedText style={styles.footnoteText}>
-          {techniques[breathingTechnique].description}
+          {techniqueDescription}
         </ThemedText>
+        {/* user-created techniques can be edited (and deleted, from inside
+            the editor) right here — a smaller sibling of the header's
+            floating close chip */}
+        {isCustomTechnique && (
+          <Pressable
+            // onPressIn for the same reason as the Start/Pause button above
+            onPressIn={handleEditTechnique}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${breathingTechnique}`}
+            style={[
+              styles.editChip,
+              {
+                backgroundColor: FloatingSurface[dark ? "dark" : "light"],
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Feather name="edit-2" size={13} color={colors.text} />
+          </Pressable>
+        )}
       </ThemedView>
     </GradientBackground>
   );
@@ -163,11 +204,13 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: "transparent",
   },
+  // bottom-aligned (not centered): the visualization and controls settle low
+  // on the page, right above the technique card, leaving the free space up top
   sessionArea: {
     flex: 1,
     alignSelf: "stretch",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-end",
     gap: 20,
     backgroundColor: "transparent",
   },
@@ -213,6 +256,7 @@ const styles = StyleSheet.create({
   },
   footnote: {
     alignSelf: "stretch",
+    marginTop: 14,
     marginHorizontal: 8,
     alignItems: "center",
     gap: 2,
@@ -226,5 +270,16 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: "center",
     opacity: 0.75,
+  },
+  editChip: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

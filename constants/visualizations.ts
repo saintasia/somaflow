@@ -43,7 +43,6 @@ export const visualizations = {
     "Shape",
     require("@/assets/animations/shape.json"),
   ),
-  star: defineVisualization("Star", require("@/assets/animations/star.json")),
   lotus: defineVisualization(
     "Lotus",
     require("@/assets/animations/lotus.json"),
