@@ -7,6 +7,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { ThemeModeProvider } from '@/hooks/ThemeModeContext';
 import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors'
@@ -15,6 +16,17 @@ import { preloadBreathingAudio } from '@/hooks/useBreathingSession';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  // the provider must wrap RootNavigator: useColorScheme (called there and in
+  // every themed component) resolves the system scheme through the stored
+  // dark-mode preference this provider owns
+  return (
+    <ThemeModeProvider>
+      <RootNavigator />
+    </ThemeModeProvider>
+  );
+}
+
+function RootNavigator() {
   const colorScheme = useColorScheme();
   const router = useRouter();
 
@@ -152,7 +164,9 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-      <StatusBar style="auto" />
+      {/* not "auto" — the status bar must follow the dark-mode setting, which
+          may disagree with the system scheme */}
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }

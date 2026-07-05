@@ -7,17 +7,22 @@ import { useTheme } from "@react-navigation/native";
 import {
   STORAGE_KEYS,
   VOICE_OPTIONS,
+  DARK_MODE_OPTIONS,
   type VoiceOption,
   loadSettings,
   saveSetting,
 } from "@/constants/storage";
+import { useThemeMode } from "@/hooks/ThemeModeContext";
 
-// Stored voice values are lowercase; capitalize them for the pill labels.
-const voiceLabel = (option: VoiceOption) =>
+// Stored option values are lowercase; capitalize them for the pill labels.
+const pillLabel = (option: string) =>
   option.charAt(0).toUpperCase() + option.slice(1);
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
+  // Dark mode lives in context (not local state): setting it re-themes every
+  // mounted screen immediately, and the provider persists it.
+  const { darkMode, setDarkMode } = useThemeMode();
 
   // State for settings. Technique, session length, and visualization moved to
   // the Breathe tab — this screen owns the sound/voice/vibration preferences.
@@ -61,7 +66,7 @@ export default function SettingsScreen() {
                 style={[styles.pill, { backgroundColor: voice === option ? colors.primary : colors.border }]}
               >
                 <ThemedText type="defaultSemiBold" lightColor={voice === option ? "white" : colors.text}>
-                  {voiceLabel(option)}
+                  {pillLabel(option)}
                 </ThemedText>
               </Pressable>
             ))}
@@ -101,6 +106,25 @@ export default function SettingsScreen() {
               {isVibrationEnabled ? "On" : "Off"}
             </ThemedText>
           </Pressable>
+        </ThemedView>
+
+        {/* Dark Mode Selection */}
+        <ThemedView style={[styles.optionRow, { backgroundColor: colors.card }]}>
+          <ThemedText type="subtitle">Dark mode</ThemedText>
+          <ThemedText>Auto follows your device&apos;s appearance setting</ThemedText>
+          <ThemedView style={styles.pillContainer}>
+            {DARK_MODE_OPTIONS.map((option) => (
+              <Pressable
+                key={option}
+                onPress={() => setDarkMode(option)}
+                style={[styles.pill, { backgroundColor: darkMode === option ? colors.primary : colors.border }]}
+              >
+                <ThemedText type="defaultSemiBold" lightColor={darkMode === option ? "white" : colors.text}>
+                  {pillLabel(option)}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </ThemedView>
         </ThemedView>
       </ThemedView>
       </ThemedView>

@@ -106,7 +106,7 @@ export default function BreathingScreen() {
         }}
       >
         {elapsedTime === 0 && !isRunning && (
-          <ThemedText style={{ position: "absolute", top: -20 }} type="title">
+          <ThemedText style={{ position: "absolute", top: -28 }} type="title">
             {sessionDuration} min session
           </ThemedText>
         )}
@@ -204,14 +204,17 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: "transparent",
   },
-  // bottom-aligned (not centered): the visualization and controls settle low
-  // on the page, right above the technique card, leaving the free space up top
+  // centered as one tight cluster: the progress bar and Start/Pause button
+  // hug the visualization rather than settling down by the technique card.
+  // paddingTop biases the cluster below true center, keeping breathing room
+  // above the phase label ("Breathe in" etc.)
   sessionArea: {
     flex: 1,
     alignSelf: "stretch",
     alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 20,
+    justifyContent: "center",
+    paddingTop: 48,
+    gap: 12,
     backgroundColor: "transparent",
   },
   animationContainer: {
@@ -239,7 +242,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     overflow: "hidden",
-    marginVertical: 10,
   },
   progressBar: {
     height: "100%",
@@ -247,12 +249,15 @@ const styles = StyleSheet.create({
   button: {
     paddingVertical: 12,
     paddingHorizontal: 20,
+    // sized to fit the widest label ("Continue") so the pill doesn't change
+    // width as the label cycles through Start/Pause/Continue
+    minWidth: 180,
     borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 6,
-    marginTop: 10,
+    marginTop: 12,
   },
   footnote: {
     alignSelf: "stretch",

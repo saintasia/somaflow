@@ -21,6 +21,7 @@ export const STORAGE_KEYS = {
   soundEnabled: "isSoundEnabled",
   vibrationEnabled: "isVibrationEnabled",
   voice: "voiceGuidance",
+  darkMode: "darkMode",
   history: "breathingHistory",
   totalSessions: "totalSessions",
   customTechniques: "customTechniques",
@@ -29,6 +30,10 @@ export const STORAGE_KEYS = {
 // Voice guidance spoken over the music during a session ("off" keeps music only).
 export type VoiceOption = "female" | "male" | "off";
 export const VOICE_OPTIONS: VoiceOption[] = ["female", "male", "off"];
+
+// App-wide dark mode: "on"/"off" force a scheme, "auto" follows the system.
+export type DarkModeOption = "on" | "off" | "auto";
+export const DARK_MODE_OPTIONS: DarkModeOption[] = ["on", "off", "auto"];
 
 // One completed breathing session, as stored in `breathingHistory`.
 export type Session = {
@@ -44,6 +49,7 @@ export type Settings = {
   isSoundEnabled: boolean;
   isVibrationEnabled: boolean;
   voice: VoiceOption;
+  darkMode: DarkModeOption;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -53,6 +59,7 @@ const DEFAULT_SETTINGS: Settings = {
   isSoundEnabled: true,
   isVibrationEnabled: true,
   voice: "female",
+  darkMode: "auto",
 };
 
 // Keep only the 30 most recent sessions to bound on-device storage.
@@ -121,16 +128,25 @@ export const deleteCustomTechnique = async (name: string): Promise<void> => {
 // Load all persisted settings at once, applying defaults for anything
 // not yet stored. Used by the breathing screen and mirrored on the home tab.
 export const loadSettings = async (): Promise<Settings> => {
-  const [technique, duration, visualization, sound, vibration, voice, customs] =
-    await Promise.all([
-      AsyncStorage.getItem(STORAGE_KEYS.technique),
-      AsyncStorage.getItem(STORAGE_KEYS.duration),
-      AsyncStorage.getItem(STORAGE_KEYS.visualization),
-      AsyncStorage.getItem(STORAGE_KEYS.soundEnabled),
-      AsyncStorage.getItem(STORAGE_KEYS.vibrationEnabled),
-      AsyncStorage.getItem(STORAGE_KEYS.voice),
-      loadCustomTechniques(),
-    ]);
+  const [
+    technique,
+    duration,
+    visualization,
+    sound,
+    vibration,
+    voice,
+    darkMode,
+    customs,
+  ] = await Promise.all([
+    AsyncStorage.getItem(STORAGE_KEYS.technique),
+    AsyncStorage.getItem(STORAGE_KEYS.duration),
+    AsyncStorage.getItem(STORAGE_KEYS.visualization),
+    AsyncStorage.getItem(STORAGE_KEYS.soundEnabled),
+    AsyncStorage.getItem(STORAGE_KEYS.vibrationEnabled),
+    AsyncStorage.getItem(STORAGE_KEYS.voice),
+    AsyncStorage.getItem(STORAGE_KEYS.darkMode),
+    loadCustomTechniques(),
+  ]);
 
   return {
     // the stored name must still exist (built-in or custom) — a deleted
@@ -152,6 +168,9 @@ export const loadSettings = async (): Promise<Settings> => {
     voice: VOICE_OPTIONS.includes(voice as VoiceOption)
       ? (voice as VoiceOption)
       : DEFAULT_SETTINGS.voice,
+    darkMode: DARK_MODE_OPTIONS.includes(darkMode as DarkModeOption)
+      ? (darkMode as DarkModeOption)
+      : DEFAULT_SETTINGS.darkMode,
   };
 };
 
