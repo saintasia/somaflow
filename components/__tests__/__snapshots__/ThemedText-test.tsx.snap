@@ -9,8 +9,8 @@ exports[`renders correctly 1`] = `
       },
       {
         "fontFamily": "InclusiveSansRegular",
-        "fontSize": 16,
-        "lineHeight": 24,
+        "fontSize": 18,
+        "lineHeight": 28,
       },
       undefined,
       undefined,

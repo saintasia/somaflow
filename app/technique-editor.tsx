@@ -8,7 +8,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
 import { RoundIconButton } from "@/components/RoundIconButton";
-import { MutedText } from "@/constants/Theme";
+import { MutedText, scaleFont } from "@/constants/Theme";
 import {
   techniques,
   describeTechnique,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontFamily: "InclusiveSansRegular",
   },
   inputMultiline: {
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   nameTakenNote: {
-    fontSize: 13,
+    fontSize: scaleFont(13),
     marginTop: -6,
   },
   phaseRow: {
@@ -299,6 +299,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   deleteLabel: {
-    fontSize: 14,
+    fontSize: scaleFont(14),
   },
 });

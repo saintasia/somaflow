@@ -3,6 +3,7 @@ import { StyleSheet, type ViewProps } from "react-native";
 import { useTheme } from "@react-navigation/native";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { scaleFont } from "@/constants/Theme";
 
 type StatCardProps = {
   label: string;
@@ -59,7 +60,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   value: {
-    fontSize: 48,
-    lineHeight: 48,
+    fontSize: scaleFont(48),
+    lineHeight: scaleFont(48),
   },
 });

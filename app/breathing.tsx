@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
-import { FloatingSurface } from "@/constants/Theme";
+import { FloatingSurface, scaleFont } from "@/constants/Theme";
 import { useTheme } from "@react-navigation/native";
 import { useBreathingSession } from "@/hooks/useBreathingSession";
 
@@ -234,8 +234,8 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   countdownNumber: {
-    fontSize: 56,
-    lineHeight: 64,
+    fontSize: scaleFont(56),
+    lineHeight: scaleFont(64),
   },
   progressBarContainer: {
     width: "80%",
@@ -271,8 +271,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   footnoteText: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: scaleFont(13),
+    lineHeight: scaleFont(18),
     textAlign: "center",
     opacity: 0.75,
   },

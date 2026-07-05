@@ -1,5 +1,5 @@
 import { Text, type TextProps, StyleSheet } from "react-native";
-import { LightTheme, DarkTheme } from "@/constants/Theme";
+import { LightTheme, DarkTheme, scaleFont } from "@/constants/Theme";
 import { useThemeColor } from "@/hooks/useThemeColor";
 
 export type ThemedTextProps = TextProps & {
@@ -35,27 +35,27 @@ export function ThemedText({
 
 const styles = StyleSheet.create({
   default: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: scaleFont(16),
+    lineHeight: scaleFont(24),
     fontFamily: "InclusiveSansRegular",
   },
   defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: scaleFont(16),
+    lineHeight: scaleFont(24),
     fontFamily: "InclusiveSansMedium",
   },
   title: {
-    fontSize: 32,
-    lineHeight: 32,
+    fontSize: scaleFont(32),
+    lineHeight: scaleFont(32),
     fontFamily: "InclusiveSansBold",
   },
   subtitle: {
-    fontSize: 20,
+    fontSize: scaleFont(20),
     fontFamily: "InclusiveSansBold",
   },
   link: {
-    lineHeight: 30,
-    fontSize: 16,
+    lineHeight: scaleFont(30),
+    fontSize: scaleFont(16),
     fontFamily: "InclusiveSansRegular",
     color: "#0a7ea4",
   },

@@ -35,7 +35,7 @@ import { RoundIconButton } from "@/components/RoundIconButton";
 import { useRouter } from "expo-router";
 import { useTheme, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { FLOATING_TAB_CLEARANCE } from "@/constants/Theme";
+import { FLOATING_TAB_CLEARANCE, scaleFont } from "@/constants/Theme";
 import { Feather } from "@expo/vector-icons";
 
 // Every control shares this width — the visualization carousel, the technique
@@ -305,7 +305,6 @@ export default function HomeScreen() {
                 option={item}
                 size={VISUALIZATION_PREVIEW_SIZE}
               />
-              <ThemedText>{visualizations[item].label}</ThemedText>
             </View>
           )}
         />
@@ -337,6 +336,9 @@ export default function HomeScreen() {
             </Pressable>
           ))}
         </ThemedView>
+        {/* the selection's label sits below the dots so the dots read as
+            paging for the animation above, not as a selector for the label */}
+        <ThemedText>{visualizations[visualization].label}</ThemedText>
       </ThemedView>
 
       {/* Technique picker — a drag anywhere on the name or description
@@ -475,7 +477,9 @@ export default function HomeScreen() {
               accessibilityLabel={`${item} minute session`}
               accessibilityState={{ selected: item === sessionDuration }}
             >
-              <ThemedText type="title">{item} min</ThemedText>
+              <ThemedText type="title" style={styles.durationText}>
+                {item} min
+              </ThemedText>
             </View>
           )}
         />
@@ -520,7 +524,6 @@ const styles = StyleSheet.create({
   visualizationPage: {
     width: VISUALIZATION_PAGE_WIDTH,
     alignItems: "center",
-    gap: 2,
   },
   dotRow: {
     flexDirection: "row",
@@ -579,12 +582,13 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
-  // minHeight (not height, which clipped 3-line descriptions) keeps the
-  // layout steady across techniques while letting long text show fully
+  // minHeight (not height, which clipped longer descriptions) keeps the
+  // layout steady across techniques while letting long text show fully —
+  // sized for two lines of default text, and scaled with it
   techniqueDescription: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     textAlign: "center",
-    minHeight: 76,
+    minHeight: scaleFont(52),
   },
   durationList: {
     width: DURATION_PAGE_WIDTH,
@@ -595,6 +599,12 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // understated next to the title-sized technique names — the minutes are a
+  // secondary choice
+  durationText: {
+    fontSize: scaleFont(24),
+    lineHeight: scaleFont(28),
   },
   button: {
     width: CONTROL_WIDTH,

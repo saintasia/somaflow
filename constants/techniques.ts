@@ -21,7 +21,7 @@ export const techniques: Record<string, TechniqueDef> = {
     pattern:{ inhale: 4, hold: 0, exhale: 6, hold2: 0 },
   },
   "4-7-8": {
-    description: "Helps reduce stress, improve sleep, and calm the nervous system",
+    description: "Helps reduce stress, improve sleep, and calm the nerves",
     pattern:{ inhale: 4, hold: 7, exhale: 8, hold2: 0 },
   },
   "Box Breathing": {

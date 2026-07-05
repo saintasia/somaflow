@@ -1,4 +1,20 @@
 import { Theme, DarkTheme as DefaultDarkTheme, DefaultTheme } from "@react-navigation/native"; // Import Theme type
+import { Dimensions } from "react-native";
+
+// Font sizes scale gently with device width: designs are authored against a
+// 390pt-wide screen (standard iPhone), and narrower/wider devices shrink or
+// grow text proportionally. The factor is clamped so text stays legible on
+// small phones and doesn't balloon on tablets or wide web windows. Read once
+// at startup — rotation/resize doesn't re-scale, which is fine for "more or
+// less" width-proportional type.
+const BASE_SCREEN_WIDTH = 390;
+const fontScale = Math.min(
+  Math.max(Dimensions.get("window").width / BASE_SCREEN_WIDTH, 0.85),
+  1.15,
+);
+// Use for every fontSize/lineHeight (and text-derived minHeights) so type
+// tracks the device width consistently app-wide.
+export const scaleFont = (size: number) => Math.round(size * fontScale);
 
 export const LightTheme: Theme = {
   ...DefaultTheme,
