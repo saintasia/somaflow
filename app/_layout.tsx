@@ -18,6 +18,23 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
 
+  // the floating round close chip used by the full-screen breathing session
+  // and the technique editor modal
+  const headerChip = {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 8,
+    // breathing room between the chip and the header title next to it
+    marginRight: 16,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    backgroundColor: FloatingSurface[colorScheme === 'dark' ? 'dark' : 'light'],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: (colorScheme === 'dark' ? DarkTheme : LightTheme).colors
+      .border,
+  };
+
 
   const [loaded] = useFonts({
     InclusiveSansMedium: require('../assets/fonts/InclusiveSans-Medium.ttf'),
@@ -79,38 +96,57 @@ export default function RootLayout() {
                 hitSlop={16}
                 accessibilityRole="button"
                 accessibilityLabel="End session and go back"
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  marginLeft: 8,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor:
-                    FloatingSurface[colorScheme === 'dark' ? 'dark' : 'light'],
-                  borderWidth: StyleSheet.hairlineWidth,
-                  borderColor: (colorScheme === 'dark' ? DarkTheme : LightTheme)
-                    .colors.border,
-                }}
+                style={headerChip}
               >
                 <Feather name="x" size={22} color={colorScheme === 'dark' ?  Colors.dark.text : Colors.light.text} />
               </Pressable>
             ),
           }}
         />
+        {/* Create/edit a custom breathing technique (opened from the Breathe
+            tab's technique carousel). Same bare header as the breathing
+            screen: transparent, no title, floating close chip. */}
+        <Stack.Screen
+          name="technique-editor"
+          options={{
+            presentation: 'modal',
+            headerTransparent: true,
+            headerTitle: 'Your technique',
+            headerShadowVisible: false,
+            headerLeft: () => (
+              <Pressable
+                // same onPressIn workaround as the buttons above
+                onPressIn={() => router.back()}
+                hitSlop={16}
+                accessibilityRole="button"
+                accessibilityLabel="Go back without saving"
+                style={headerChip}
+              >
+                <Feather name="chevron-left" size={22} color={colorScheme === 'dark' ?  Colors.dark.text : Colors.light.text} />
+              </Pressable>
+            ),
+          }}
+        />
+        {/* Summary keeps a title + back button, but over the gradient like
+            everything else — the default header painted the (translucent)
+            card color, which read as a grey band with a shadow */}
         <Stack.Screen
           name="summary"
           options={{
             headerTitle: 'Summary',
-            headerBackTitle: "Home",
+            headerTransparent: true,
+            headerShadowVisible: false,
             headerLeft: () => (
               <Pressable
                 // navigate, not push — see the breathing headerLeft above
                 onPressIn={() => router.navigate("/")}
                 // same bug as above
-                style={{ marginRight: 14 }}
+                hitSlop={16}
+                accessibilityRole="button"
+                accessibilityLabel="Go home"
+                style={headerChip}
               >
-                <Feather name="chevron-left" size={40} color={colorScheme === 'dark' ?  Colors.dark.text : Colors.light.text} />
+                <Feather name="chevron-left" size={22} color={colorScheme === 'dark' ?  Colors.dark.text : Colors.light.text} />
               </Pressable>
             ),
           }}
