@@ -1,14 +1,14 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { render, fireEvent } from "@testing-library/react-native";
 import SettingsScreen from "@/app/(tabs)/settings";
-import { ThemeProvider } from "@react-navigation/native";
+import { ThemeProvider } from "expo-router/react-navigation";
 import { LightTheme } from "@/constants/Theme"; // Import your custom theme
 
 // (AsyncStorage is mocked globally in jest.setup.js)
 
 // Mock React Navigation hooks
-jest.mock("@react-navigation/native", () => ({
-  ...jest.requireActual("@react-navigation/native"),
+jest.mock("expo-router/react-navigation", () => ({
+  ...jest.requireActual("expo-router/react-navigation"),
   useTheme: () => ({ colors: {} }),
 }));
 

@@ -30,13 +30,14 @@ const ThemeModeContext = createContext<ThemeModeContextValue>({
 export const useThemeMode = () => useContext(ThemeModeContext);
 
 // The stored preference + current system scheme → the scheme to render.
+// RN 0.86's ColorSchemeName adds "unspecified", which renders as light.
 export const resolveColorScheme = (
-  system: "light" | "dark" | null | undefined,
+  system: "light" | "dark" | "unspecified" | null | undefined,
   darkMode: DarkModeOption
 ): "light" | "dark" => {
   if (darkMode === "on") return "dark";
   if (darkMode === "off") return "light";
-  return system ?? "light";
+  return system === "dark" ? "dark" : "light";
 };
 
 export function ThemeModeProvider({ children }: { children: ReactNode }) {

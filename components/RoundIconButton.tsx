@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useTheme } from "@react-navigation/native";
+import { useTheme } from "expo-router/react-navigation";
 
 // The round icon button used by the Breathe tab's pickers — the < > technique
 // chevrons and the +/- duration stepper share this one size and themed look.

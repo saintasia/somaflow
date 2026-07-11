@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Animated, Platform, Vibration } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect } from "expo-router/react-navigation";
 import LottieView from "lottie-react-native";
 import * as Haptics from "expo-haptics";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";

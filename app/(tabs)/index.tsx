@@ -33,7 +33,7 @@ import { GradientBackground } from "@/components/GradientBackground";
 import { VisualizationPreview } from "@/components/VisualizationPreview";
 import { RoundIconButton } from "@/components/RoundIconButton";
 import { useRouter } from "expo-router";
-import { useTheme, useFocusEffect } from "@react-navigation/native";
+import { useTheme, useFocusEffect } from "expo-router/react-navigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FLOATING_TAB_CLEARANCE, scaleFont } from "@/constants/Theme";
 import { Feather } from "@expo/vector-icons";
@@ -192,48 +192,55 @@ export default function HomeScreen() {
   };
 
   // The FlatList forbids swapping onViewableItemsChanged between renders, so
-  // the handlers are created once and read the live selection from refs.
+  // the handlers are created once (lazy useState — reading a ref during
+  // render violates react-hooks/refs) and read the live selection from refs,
+  // mirrored in an effect.
   const visualizationRef = useRef(visualization);
-  visualizationRef.current = visualization;
   const breathingTechniqueRef = useRef(breathingTechnique);
-  breathingTechniqueRef.current = breathingTechnique;
   const sessionDurationRef = useRef(sessionDuration);
-  sessionDurationRef.current = sessionDuration;
+  useEffect(() => {
+    visualizationRef.current = visualization;
+    breathingTechniqueRef.current = breathingTechnique;
+    sessionDurationRef.current = sessionDuration;
+  }, [visualization, breathingTechnique, sessionDuration]);
 
-  const handleVisualizationViewable = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<Visualization>[] }) => {
-      const option = viewableItems.find((token) => token.isViewable)?.item;
-      if (option && option !== visualizationRef.current) {
-        selectVisualization(option);
-      }
-    },
-  ).current;
+  const [handleVisualizationViewable] = useState(
+    () =>
+      ({ viewableItems }: { viewableItems: ViewToken<Visualization>[] }) => {
+        const option = viewableItems.find((token) => token.isViewable)?.item;
+        if (option && option !== visualizationRef.current) {
+          selectVisualization(option);
+        }
+      },
+  );
 
-  const handleTechniqueViewable = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<TechniquePage>[] }) => {
-      const token = viewableItems.find((t) => t.isViewable);
-      if (!token || token.index == null) return;
-      setTechniquePageIndex(token.index);
-      if (token.item.kind === "create") {
-        // swiping to the create page is an interaction too — a late settings
-        // load must not yank the carousel back to the saved technique
-        interactedRef.current = true;
-        return;
-      }
-      if (token.item.name !== breathingTechniqueRef.current) {
-        selectTechnique(token.item.name);
-      }
-    },
-  ).current;
+  const [handleTechniqueViewable] = useState(
+    () =>
+      ({ viewableItems }: { viewableItems: ViewToken<TechniquePage>[] }) => {
+        const token = viewableItems.find((t) => t.isViewable);
+        if (!token || token.index == null) return;
+        setTechniquePageIndex(token.index);
+        if (token.item.kind === "create") {
+          // swiping to the create page is an interaction too — a late settings
+          // load must not yank the carousel back to the saved technique
+          interactedRef.current = true;
+          return;
+        }
+        if (token.item.name !== breathingTechniqueRef.current) {
+          selectTechnique(token.item.name);
+        }
+      },
+  );
 
-  const handleDurationViewable = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<number>[] }) => {
-      const minutes = viewableItems.find((token) => token.isViewable)?.item;
-      if (minutes && minutes !== sessionDurationRef.current) {
-        selectDuration(minutes);
-      }
-    },
-  ).current;
+  const [handleDurationViewable] = useState(
+    () =>
+      ({ viewableItems }: { viewableItems: ViewToken<number>[] }) => {
+        const minutes = viewableItems.find((token) => token.isViewable)?.item;
+        if (minutes && minutes !== sessionDurationRef.current) {
+          selectDuration(minutes);
+        }
+      },
+  );
 
   // the accessible < > alternative to swiping the technique carousel; steps
   // through the pages (the trailing create page included, without selecting it)

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
 import {
@@ -25,7 +25,9 @@ export function FloatingTabBar({
 }: BottomTabBarProps) {
   const colorScheme = useColorScheme() ?? "light";
   const [barWidth, setBarWidth] = useState(0);
-  const highlightX = useRef(new Animated.Value(0)).current;
+  // lazy useState (not useRef(...).current): a stable instance without
+  // reading a ref during render, which react-hooks/refs forbids
+  const [highlightX] = useState(() => new Animated.Value(0));
   const placedRef = useRef(false);
 
   const itemWidth = barWidth / state.routes.length;

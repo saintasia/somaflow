@@ -13,7 +13,7 @@ beforeEach(async () => {
 });
 
 // mock theme
-jest.mock("@react-navigation/native", () => ({
+jest.mock("expo-router/react-navigation", () => ({
   useTheme: () => ({ colors: {} }),
 }));
 

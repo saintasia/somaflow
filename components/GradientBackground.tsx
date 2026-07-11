@@ -1,6 +1,6 @@
 import { StyleSheet, View, type ViewProps } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useTheme } from "@react-navigation/native";
+import { useTheme } from "expo-router/react-navigation";
 import { BackgroundGradients } from "@/constants/Theme";
 
 // The app-wide screen backdrop: a soft themed gradient (BackgroundGradients

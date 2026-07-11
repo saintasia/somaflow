@@ -7,7 +7,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
 import { FloatingSurface, scaleFont } from "@/constants/Theme";
-import { useTheme } from "@react-navigation/native";
+import { useTheme } from "expo-router/react-navigation";
 import { useBreathingSession } from "@/hooks/useBreathingSession";
 
 export default function BreathingScreen() {
@@ -228,7 +228,11 @@ const styles = StyleSheet.create({
     height: 300,
   },
   countdownOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",

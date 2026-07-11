@@ -6,7 +6,7 @@ import TechniqueEditorScreen from "@/app/technique-editor";
 // (AsyncStorage is mocked globally in jest.setup.js)
 
 // mock theme
-jest.mock("@react-navigation/native", () => ({
+jest.mock("expo-router/react-navigation", () => ({
   useTheme: () => ({ colors: {} }),
 }));
 

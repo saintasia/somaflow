@@ -1,4 +1,4 @@
-import { Theme, DarkTheme as DefaultDarkTheme, DefaultTheme } from "@react-navigation/native"; // Import Theme type
+import { Theme, DarkTheme as DefaultDarkTheme, DefaultTheme } from "expo-router/react-navigation"; // Import Theme type
 import { Dimensions } from "react-native";
 
 // Font sizes scale gently with device width: designs are authored against a

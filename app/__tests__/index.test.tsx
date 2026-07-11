@@ -6,7 +6,7 @@ import HomeScreen from "@/app/(tabs)/index";
 
 // mock theme + focus. useFocusEffect runs its callback on mount (like a
 // freshly focused screen) so the saved-settings reload path is exercised.
-jest.mock("@react-navigation/native", () => ({
+jest.mock("expo-router/react-navigation", () => ({
   useTheme: () => ({ colors: {} }),
   useFocusEffect: (callback: () => void) =>
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories are hoisted above imports

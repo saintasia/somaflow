@@ -16,7 +16,7 @@ jest.spyOn(Animated, "timing").mockImplementation(() => {
 });
 
 // mock theme + focus (useFocusEffect is a no-op: focus/blur isn't simulated)
-jest.mock("@react-navigation/native", () => ({
+jest.mock("expo-router/react-navigation", () => ({
   useTheme: () => ({ colors: {} }),
   useFocusEffect: jest.fn(),
 }));

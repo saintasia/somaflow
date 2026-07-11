@@ -1,4 +1,4 @@
-import { View, ScrollView, type ScrollViewProps } from 'react-native';
+import { View, ScrollView, type ScrollViewProps, type ColorValue } from 'react-native';
 
 import { useThemeColor } from '@/hooks/useThemeColor';
 
@@ -7,8 +7,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 // variant simply ignores any it receives.
 export type ThemedViewProps = ScrollViewProps & {
   type?: 'default' | 'scrollable'
-  lightColor?: string;
-  darkColor?: string;
+  lightColor?: ColorValue;
+  darkColor?: ColorValue;
 };
 
 export function ThemedView({ style, lightColor, darkColor, type = 'default', ...otherProps }: ThemedViewProps) {

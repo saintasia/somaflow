@@ -4,7 +4,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
 import { StatCard } from "@/components/StatCard";
-import { useTheme } from "@react-navigation/native";
+import { useTheme } from "expo-router/react-navigation";
 import { loadStats, type Session } from "@/constants/storage";
 import { getSessionsThisWeek } from "../../utils";
 

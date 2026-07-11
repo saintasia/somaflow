@@ -8,7 +8,7 @@ jest.mock("expo-router", () => ({
 }));
 
 // mock theme
-jest.mock("@react-navigation/native", () => ({
+jest.mock("expo-router/react-navigation", () => ({
   useTheme: () => ({ colors: {} }),
 }));
 

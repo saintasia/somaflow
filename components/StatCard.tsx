@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { StyleSheet, type ViewProps } from "react-native";
-import { useTheme } from "@react-navigation/native";
+import { useTheme } from "expo-router/react-navigation";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { scaleFont } from "@/constants/Theme";

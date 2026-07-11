@@ -1,4 +1,4 @@
-import { ThemeProvider } from '@react-navigation/native';
+import { ThemeProvider } from "expo-router/react-navigation";
 import { LightTheme, DarkTheme, FloatingSurface } from "@/constants/Theme";
 import { Stack } from 'expo-router/stack';
 import { useRouter } from 'expo-router';

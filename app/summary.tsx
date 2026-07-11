@@ -11,7 +11,7 @@ import {
   loadCustomTechniques,
   type Session,
 } from '@/constants/storage';
-import { useTheme } from '@react-navigation/native';
+import { useTheme } from "expo-router/react-navigation";
 import { useRouter } from 'expo-router';
 import { countSessionsThisWeek } from '../utils';
 

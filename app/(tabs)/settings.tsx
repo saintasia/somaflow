@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
-import { useTheme } from "@react-navigation/native";
+import { useTheme } from "expo-router/react-navigation";
 import {
   STORAGE_KEYS,
   VOICE_OPTIONS,
