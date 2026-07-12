@@ -1,6 +1,6 @@
 import { StyleSheet, Animated, Pressable, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import LottieView from "lottie-react-native";
+import AppLottieView from "@/components/AppLottieView";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
@@ -70,7 +70,7 @@ export default function BreathingScreen() {
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
-          <LottieView
+          <AppLottieView
             ref={lottieRef}
             source={visualizationSource}
             loop={false}

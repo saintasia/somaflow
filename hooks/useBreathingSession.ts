@@ -6,7 +6,7 @@ import {
   Vibration,
 } from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
-import LottieView from "lottie-react-native";
+import type { AppLottieViewHandle } from "@/components/AppLottieView";
 import * as Haptics from "expo-haptics";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import { Asset } from "expo-asset";
@@ -171,7 +171,7 @@ export const preloadBreathingAudio = (): void => {
 // session on completion. `app/breathing.tsx` is the thin view over this hook.
 export function useBreathingSession() {
   const router = useRouter();
-  const lottieRef = useRef<LottieView>(null);
+  const lottieRef = useRef<AppLottieViewHandle>(null);
   const playersRef = useRef<Record<string, AudioPlayer> | null>(null);
   const parkTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const hapticTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());

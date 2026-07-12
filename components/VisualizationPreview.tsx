@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
-import LottieView from "lottie-react-native";
+import AppLottieView, {
+  type AppLottieViewHandle,
+} from "@/components/AppLottieView";
 import { visualizations, type Visualization } from "@/constants/visualizations";
 
 // Every preview breathes at the same pace regardless of the animation's
@@ -18,7 +20,7 @@ export function VisualizationPreview({
   option: Visualization;
   size: number;
 }) {
-  const lottieRef = useRef<LottieView>(null);
+  const lottieRef = useRef<AppLottieViewHandle>(null);
   const forwardRef = useRef(true);
   const { source, firstFrame, lastFrame, nativeSeconds } =
     visualizations[option];
@@ -29,7 +31,7 @@ export function VisualizationPreview({
   }, [firstFrame, lastFrame]);
 
   return (
-    <LottieView
+    <AppLottieView
       ref={lottieRef}
       source={source}
       loop={false}
