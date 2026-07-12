@@ -196,8 +196,13 @@ test("pause freezes clips in place and Continue resumes them", async () => {
   const music = jest.requireMock("expo-audio").__players[0];
 
   // let the countdown tick once (the button only reads Continue after
-  // elapsedTime > 0), then pause mid-clip: frozen where it is, NOT rewound
-  await waitFor(() => expect(getByText("3")).toBeTruthy(), { timeout: 3000 });
+  // elapsedTime > 0), then pause mid-clip: frozen where it is, NOT rewound.
+  // The countdown is deliberately hidden from screen readers, so the query
+  // must include accessibility-hidden elements.
+  await waitFor(
+    () => expect(getByText("3", { includeHiddenElements: true })).toBeTruthy(),
+    { timeout: 3000 },
+  );
   fireEvent(getByText(/Pause/i), "pressIn");
   await waitFor(() => expect(getByText(/Continue/i)).toBeTruthy());
   expect(music.pause).toHaveBeenCalled();

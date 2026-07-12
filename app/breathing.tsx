@@ -1,4 +1,4 @@
-import { StyleSheet, Animated, Pressable } from "react-native";
+import { StyleSheet, Animated, Pressable, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
 import { useRouter } from "expo-router";
@@ -7,11 +7,11 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
 import { FloatingSurface, scaleFont } from "@/constants/Theme";
-import { useTheme } from "expo-router/react-navigation";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { useBreathingSession } from "@/hooks/useBreathingSession";
 
 export default function BreathingScreen() {
-  const { colors, dark } = useTheme();
+  const { colors, dark } = useAppTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const {
@@ -63,18 +63,31 @@ export default function BreathingScreen() {
           </ThemedText>
         )}
 
-        <LottieView
-          ref={lottieRef}
-          source={visualizationSource}
-          loop={false}
-          // lottieSpeed stretches the animation across the current phase;
-          // speed 0 freezes the current frame on pause (reliable on the New Architecture)
-          speed={isRunning ? lottieSpeed : 0}
-          style={styles.animation}
-        />
+        {/* the wrapper carries the accessibility-hiding props — the
+            animation is decorative (the phase label and announcements carry
+            the state), and LottieView's prop types don't accept them */}
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <LottieView
+            ref={lottieRef}
+            source={visualizationSource}
+            loop={false}
+            // lottieSpeed stretches the animation across the current phase;
+            // speed 0 freezes the current frame on pause (reliable on the New Architecture)
+            speed={isRunning ? lottieSpeed : 0}
+            style={styles.animation}
+          />
+        </View>
 
         {sessionActive && (
           <ThemedView
+            // hidden from screen readers: it changes every second — focusing
+            // it would spam stale numbers; the phase announcements already
+            // state each phase's duration
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
             style={{
               ...styles.countdownOverlay,
               paddingTop:
@@ -86,10 +99,7 @@ export default function BreathingScreen() {
           >
             <ThemedText
               type="title"
-              style={[
-                styles.countdownNumber,
-                { color: dark ? colors.background : "white" },
-              ]}
+              style={[styles.countdownNumber, { color: colors.countdown }]}
             >
               {secondsLeft}
             </ThemedText>
@@ -113,6 +123,14 @@ export default function BreathingScreen() {
       </ThemedView>
       {/* Progress Bar */}
       <ThemedView
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel="Session progress"
+        accessibilityValue={{
+          min: 0,
+          max: sessionDuration * 60,
+          now: elapsedTime,
+        }}
         style={[
           styles.progressBarContainer,
           { backgroundColor: colors.border },
@@ -136,7 +154,17 @@ export default function BreathingScreen() {
       <Pressable
         // having to use onPressIn in a layout forces the button to also use onPressIn, has to do with React Native bug
         onPressIn={handlePause}
-        style={[styles.button, { backgroundColor: colors.primary }]}
+        accessibilityRole="button"
+        // an explicit label: the visible one is assembled from conditional
+        // texts plus an icon glyph, which screen readers read unreliably
+        accessibilityLabel={
+          isRunning
+            ? "Pause session"
+            : elapsedTime > 0
+              ? "Continue session"
+              : `Start ${sessionDuration} minute session`
+        }
+        style={[styles.button, { backgroundColor: colors.button }]}
       >
         <ThemedText type="subtitle" lightColor="white">
           {!isRunning && elapsedTime > 0 && "Continue"}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTheme } from "expo-router/react-navigation";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -38,7 +38,7 @@ const PHASES: { key: keyof BreathingPattern; label: string; min: number }[] = [
 // custom technique edits). Saving also selects the technique, so the tab
 // comes back showing what was just made.
 export default function TechniqueEditorScreen() {
-  const { colors, dark } = useTheme();
+  const { colors, dark } = useAppTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ name?: string }>();
@@ -211,7 +211,7 @@ export default function TechniqueEditorScreen() {
             accessibilityState={{ disabled: !canSave }}
             style={[
               styles.saveButton,
-              { backgroundColor: colors.primary, opacity: canSave ? 1 : 0.4 },
+              { backgroundColor: colors.button, opacity: canSave ? 1 : 0.4 },
             ]}
           >
             <ThemedText type="subtitle" style={{ color: "white" }}>

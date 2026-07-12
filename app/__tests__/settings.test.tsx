@@ -34,7 +34,7 @@ test("should save sound setting when toggled", async () => {
 
   const soundToggle = getByTestId("soundToggle");
   fireEvent.press(soundToggle);
-  
+
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("isSoundEnabled", "false");
 });
 
@@ -47,6 +47,6 @@ test("should save vibration setting when toggled", async () => {
 
   const vibrationToggle = getByTestId("vibrationToggle");
   fireEvent.press(vibrationToggle);
-  
+
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("isVibrationEnabled", "false");
 });

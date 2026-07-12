@@ -1,7 +1,7 @@
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useTheme } from "expo-router/react-navigation";
+import { useAppTheme } from "@/hooks/useAppTheme";
 
 // The round icon button used by the Breathe tab's pickers — the < > technique
 // chevrons and the +/- duration stepper share this one size and themed look.
@@ -17,7 +17,7 @@ export function RoundIconButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
-  const { colors } = useTheme();
+  const { colors } = useAppTheme();
 
   return (
     <Pressable
@@ -36,7 +36,7 @@ export function RoundIconButton({
         },
       ]}
     >
-      <Feather name={icon} size={22} color={colors.primary} />
+      <Feather name={icon} size={22} color={colors.iconAccent} />
     </Pressable>
   );
 }

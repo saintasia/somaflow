@@ -1,9 +1,11 @@
 import { StyleSheet, Pressable } from "react-native";
 import { useState, useEffect, useRef } from "react";
+import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
-import { useTheme } from "expo-router/react-navigation";
+import { PillSwitch } from "@/components/PillSwitch";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import {
   STORAGE_KEYS,
   VOICE_OPTIONS,
@@ -13,13 +15,71 @@ import {
   saveSetting,
 } from "@/constants/storage";
 import { useThemeMode } from "@/hooks/ThemeModeContext";
+import { Pill } from "@/constants/Theme";
 
-// Stored option values are lowercase; capitalize them for the pill labels.
+// Stored option values are lowercase; capitalize them for the segment labels.
 const pillLabel = (option: string) =>
   option.charAt(0).toUpperCase() + option.slice(1);
 
+// The one-of-N control: a full-width row of equal segments with every option
+// always visible (for 2–4 short options this beats a dropdown — nothing
+// hides behind a tap). The selected segment is filled and carries a check,
+// so selection never rests on colour alone. Styled by the scheme-invariant
+// Pill palette — the segments look the same in dark mode as in light.
+function SegmentedControl<T extends string>({
+  label,
+  options,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  options: readonly T[];
+  selected: T;
+  onSelect: (option: T) => void;
+}) {
+  return (
+    <ThemedView
+      style={styles.segmentRow}
+      accessibilityRole="radiogroup"
+      accessibilityLabel={label}
+    >
+      {options.map((option) => {
+        const isSelected = option === selected;
+        return (
+          <Pressable
+            key={option}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isSelected, selected: isSelected }}
+            onPress={() => onSelect(option)}
+            style={[
+              styles.segment,
+              {
+                backgroundColor: isSelected
+                  ? Pill.activeFill
+                  : Pill.inactiveFill,
+              },
+            ]}
+          >
+            {isSelected && (
+              <Feather name="check" size={14} color={Pill.activeLabel} />
+            )}
+            <ThemedText
+              type="defaultSemiBold"
+              style={{
+                color: isSelected ? Pill.activeLabel : Pill.inactiveLabel,
+              }}
+            >
+              {pillLabel(option)}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
+    </ThemedView>
+  );
+}
+
 export default function SettingsScreen() {
-  const { colors } = useTheme();
+  const { colors } = useAppTheme();
   // Dark mode lives in context (not local state): setting it re-themes every
   // mounted screen immediately, and the provider persists it.
   const { darkMode, setDarkMode } = useThemeMode();
@@ -46,87 +106,81 @@ export default function SettingsScreen() {
     });
   }, []);
 
+  // Every card shares one anatomy: title (with the switch, when the setting
+  // is binary), a short description, then the control if it isn't in the
+  // title row.
   return (
     <GradientBackground>
       <ThemedView type="scrollable" style={styles.scroll}>
-      <ThemedView style={styles.container}>
-        {/* Voice Guidance Selection */}
-        <ThemedView style={[styles.optionRow, { backgroundColor: colors.card }]}>
-          <ThemedText type="subtitle">Voice guidance</ThemedText>
-          <ThemedText>Spoken cues for each breath, played over the background sound</ThemedText>
-          <ThemedView style={styles.pillContainer}>
-            {VOICE_OPTIONS.map((option) => (
-              <Pressable
-                key={option}
-                onPress={() => {
+        <ThemedView style={styles.container}>
+          {/* Voice guidance — one of three */}
+          <ThemedView style={[styles.card, { backgroundColor: colors.card }]}>
+            <ThemedText type="subtitle">Voice guidance</ThemedText>
+            <ThemedText>
+              Spoken cues for each breath, played over the background sound
+            </ThemedText>
+            <SegmentedControl
+              label="Voice guidance"
+              options={VOICE_OPTIONS}
+              selected={voice}
+              onSelect={(option) => {
+                interactedRef.current = true;
+                setVoice(option);
+                saveSetting(STORAGE_KEYS.voice, option);
+              }}
+            />
+          </ThemedView>
+
+          {/* Background sound — on/off */}
+          <ThemedView style={[styles.card, { backgroundColor: colors.card }]}>
+            <ThemedView style={styles.titleRow}>
+              <ThemedText type="subtitle">Background sound</ThemedText>
+              <PillSwitch
+                value={isSoundEnabled}
+                onValueChange={(value) => {
                   interactedRef.current = true;
-                  setVoice(option);
-                  saveSetting(STORAGE_KEYS.voice, option);
+                  setIsSoundEnabled(value);
+                  saveSetting(STORAGE_KEYS.soundEnabled, value);
                 }}
-                style={[styles.pill, { backgroundColor: voice === option ? colors.primary : colors.border }]}
-              >
-                <ThemedText type="defaultSemiBold" lightColor={voice === option ? "white" : colors.text}>
-                  {pillLabel(option)}
-                </ThemedText>
-              </Pressable>
-            ))}
+                accessibilityLabel="Background sound"
+                testID="soundToggle"
+              />
+            </ThemedView>
+            <ThemedText>Music swells during each breath</ThemedText>
+          </ThemedView>
+
+          {/* Phone vibration — on/off */}
+          <ThemedView style={[styles.card, { backgroundColor: colors.card }]}>
+            <ThemedView style={styles.titleRow}>
+              <ThemedText type="subtitle">Phone vibration</ThemedText>
+              <PillSwitch
+                value={isVibrationEnabled}
+                onValueChange={(value) => {
+                  interactedRef.current = true;
+                  setIsVibrationEnabled(value);
+                  saveSetting(STORAGE_KEYS.vibrationEnabled, value);
+                }}
+                accessibilityLabel="Phone vibration"
+                testID="vibrationToggle"
+              />
+            </ThemedView>
+            <ThemedText>Vibration marks each breathing phase</ThemedText>
+          </ThemedView>
+
+          {/* Dark mode — one of three */}
+          <ThemedView style={[styles.card, { backgroundColor: colors.card }]}>
+            <ThemedText type="subtitle">Dark mode</ThemedText>
+            <ThemedText>
+              Auto follows your device&apos;s appearance setting
+            </ThemedText>
+            <SegmentedControl
+              label="Dark mode"
+              options={DARK_MODE_OPTIONS}
+              selected={darkMode}
+              onSelect={setDarkMode}
+            />
           </ThemedView>
         </ThemedView>
-
-        {/* Other Settings */}
-        <ThemedView style={{ ...styles.settingRow, backgroundColor: colors.card }}>
-          <ThemedText>Background sound</ThemedText>
-          <Pressable
-            onPress={() => {
-              interactedRef.current = true;
-              setIsSoundEnabled(!isSoundEnabled);
-              saveSetting(STORAGE_KEYS.soundEnabled, !isSoundEnabled);
-            }}
-            style={[styles.toggleButton, { backgroundColor: isSoundEnabled ? colors.primary : colors.border }]}
-            testID="soundToggle"
-          >
-            <ThemedText lightColor={isSoundEnabled ? "white" : colors.text}>
-              {isSoundEnabled ? "On" : "Off"}
-            </ThemedText>
-          </Pressable>
-        </ThemedView>
-
-        <ThemedView style={{ ...styles.settingRow, backgroundColor: colors.card }}>
-          <ThemedText>Phone Vibration</ThemedText>
-          <Pressable
-            onPress={() => {
-              interactedRef.current = true;
-              setIsVibrationEnabled(!isVibrationEnabled);
-              saveSetting(STORAGE_KEYS.vibrationEnabled, !isVibrationEnabled);
-            }}
-            style={[styles.toggleButton, { backgroundColor: isVibrationEnabled ? colors.primary : colors.border }]}
-            testID="vibrationToggle"
-          >
-            <ThemedText lightColor={isVibrationEnabled ? "white" : colors.text}>
-              {isVibrationEnabled ? "On" : "Off"}
-            </ThemedText>
-          </Pressable>
-        </ThemedView>
-
-        {/* Dark Mode Selection */}
-        <ThemedView style={[styles.optionRow, { backgroundColor: colors.card }]}>
-          <ThemedText type="subtitle">Dark mode</ThemedText>
-          <ThemedText>Auto follows your device&apos;s appearance setting</ThemedText>
-          <ThemedView style={styles.pillContainer}>
-            {DARK_MODE_OPTIONS.map((option) => (
-              <Pressable
-                key={option}
-                onPress={() => setDarkMode(option)}
-                style={[styles.pill, { backgroundColor: darkMode === option ? colors.primary : colors.border }]}
-              >
-                <ThemedText type="defaultSemiBold" lightColor={darkMode === option ? "white" : colors.text}>
-                  {pillLabel(option)}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </ThemedView>
-        </ThemedView>
-      </ThemedView>
       </ThemedView>
     </GradientBackground>
   );
@@ -145,35 +199,33 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: "transparent",
   },
-  settingRow: {
-    padding: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderRadius: 10,
-  },
-  optionRow: {
+  // card padding is 16 app-wide (StatCard, progress/summary cards)
+  card: {
     padding: 16,
     gap: 6,
     flexDirection: "column",
     borderRadius: 10,
   },
-  pillContainer: {
+  // inner rows stay transparent — the translucent card tint would stack
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: "transparent",
+  },
+  segmentRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 4,
+    backgroundColor: "transparent",
+  },
+  segment: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
-  },
-  pill: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 8,
     borderRadius: 40,
-    marginVertical: 5,
-    marginRight: 5,
-  },
-  toggleButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 20,
   },
 });

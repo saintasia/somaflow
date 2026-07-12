@@ -1,5 +1,31 @@
 import { Theme, DarkTheme as DefaultDarkTheme, DefaultTheme } from "expo-router/react-navigation"; // Import Theme type
-import { Dimensions } from "react-native";
+import { Dimensions, type ColorValue } from "react-native";
+
+// The navigation Theme extended with the app's own colour tokens, so screens
+// resolve every colour the same way: `const { colors } = useAppTheme()`
+// (hooks/useAppTheme.ts — useTheme() typed to include these).
+export type AppTheme = Omit<Theme, "colors"> & {
+  colors: Theme["colors"] & {
+    // standalone icon glyphs (the </> chevrons, ± steppers, the
+    // create-technique plus): deeper than `primary` — a glyph on a pale
+    // surface needs more depth than a filled button puts behind white text
+    iconAccent: ColorValue;
+    // background of unselected pills (settings options/toggles, the Progress
+    // weekday dots): near-white so the theme text on it reads clearly
+    inactivePill: ColorValue;
+    // the unhighlighted tab icons + labels, which sit directly on the
+    // gradient (consumed via Colors.tabIconDefault; the active tab uses
+    // `text` and needs no adjustment)
+    inactiveTab: ColorValue;
+    // the per-phase countdown number, which sits on the Lottie visualization
+    // (not on the gradient, so neither `text` nor plain white reads well)
+    countdown: ColorValue;
+    // fill of the large action buttons (Start breathing, Start/Pause, Save
+    // technique, Go Home): the same in both schemes, so their white labels
+    // keep identical contrast — unlike `primary`, which lightens in dark mode
+    button: ColorValue;
+  };
+};
 
 // Font sizes scale gently with device width: designs are authored against a
 // 390pt-wide screen (standard iPhone), and narrower/wider devices shrink or
@@ -16,12 +42,16 @@ const fontScale = Math.min(
 // tracks the device width consistently app-wide.
 export const scaleFont = (size: number) => Math.round(size * fontScale);
 
-export const LightTheme: Theme = {
+// Light values were set by the July 2026 WCAG contrast pass: every control
+// colour targets ≥ 3.5:1 against what it sits on (AA asks 3:1 for large
+// text / UI components, 4.5:1 for body text).
+export const LightTheme: AppTheme = {
   ...DefaultTheme,
   colors: {
     background: "#F4FFFF",
     text: "#2C6B80",
-    primary: "#5CBEDD",
+    // deep enough that a white label on a filled button holds ~3.7:1
+    primary: "#408fa7",
     border: "#CAE9E9",
     // translucent so cards read as slightly darker than whatever part of the
     // background gradient they sit on (a solid tint would match some stops
@@ -30,10 +60,18 @@ export const LightTheme: Theme = {
     // subdued rose for destructive actions and error states (delete technique,
     // name-taken) — a pure red fought the calm aqua palette
     notification: "#B85C72",
+    iconAccent: "#398197",
+    inactivePill: "#F0FAFB",
+    inactiveTab: "#3487a1",
+    countdown: "#437c8e",
+    button: "#408fa7",
   },
 };
 
-export const DarkTheme: Theme = {
+// Dark values already met the contrast target and were left mostly unchanged
+// by the pass (inactivePill matches border); iconAccent was later softened —
+// primary read too bright for bare glyphs on the dark cards.
+export const DarkTheme: AppTheme = {
   ...DefaultDarkTheme,
   colors: {
     background: "#1A2D34",
@@ -44,8 +82,32 @@ export const DarkTheme: Theme = {
     card: "rgba(8, 18, 24, 0.35)",
     // see the LightTheme notification note — lifted for dark backgrounds
     notification: "#E5A3B3",
+    iconAccent: "#5896a9",
+    inactivePill: "#3A525C",
+    inactiveTab: "#a9c1c9",
+    // matches `background`: a dark number against the light animation shapes
+    countdown: "#1A2D34",
+    button: "#408fa7",
   },
 };
+
+// The settings pills (the segmented options and the PillSwitch) keep the
+// light palette in BOTH schemes — like `button`, their active/inactive
+// contrast was tuned once and dark mode reuses it rather than maintaining a
+// second tested set. Scheme-invariant on purpose, so the labels come along:
+// the dark theme's near-white text would vanish on the light inactive fill.
+export const Pill = {
+  activeFill: LightTheme.colors.button,
+  activeLabel: "white",
+  inactiveFill: LightTheme.colors.inactivePill,
+  inactiveLabel: LightTheme.colors.text,
+  // the PillSwitch's off track: a muted slate, clearly quieter than the
+  // active fill, that the white thumb stays visible against in both schemes
+  switchOffTrack: "#637f88",
+  // the small circle behind badge glyphs riding an active pill (the Progress
+  // check badge): a lighter blue from the same family as activeFill
+  badgeFill: LightTheme.colors.border,
+} as const;
 
 // Screen backdrop gradients (rendered by components/GradientBackground).
 // Stops are tints of each theme's background — light: airy at the top into a

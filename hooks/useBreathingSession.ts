@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Animated, Platform, Vibration } from "react-native";
+import {
+  AccessibilityInfo,
+  Animated,
+  Platform,
+  Vibration,
+} from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
 import LottieView from "lottie-react-native";
 import * as Haptics from "expo-haptics";
@@ -398,10 +403,17 @@ export function useBreathingSession() {
     // isRunning is the pre-toggle value: true means we're pausing — freeze
     // the current clips in place; false means we're starting/continuing —
     // resume whatever the last pause froze (a no-op on a fresh start).
+    // Pause/resume cues always announce (unlike the phase cues, no voice clip
+    // covers them); a fresh start stays silent here — its first phase
+    // announces itself.
     if (isRunning) {
       pauseSound();
+      AccessibilityInfo.announceForAccessibility("Session paused");
     } else {
       resumeSound();
+      if (elapsedTime > 0) {
+        AccessibilityInfo.announceForAccessibility("Session resumed");
+      }
     }
   };
 
@@ -510,6 +522,17 @@ export function useBreathingSession() {
         });
 
         if (!resuming) {
+          // Screen-reader phase cues are the fallback narrator: they fire
+          // only when no voice is selected — an active voice's clips already
+          // carry the phases, and a simultaneous announcement double-speaks
+          // (VoiceOver also ducks other audio while talking, muffling the
+          // clip). No-op without a screen reader running; the stored voice
+          // setting is never changed by this.
+          if (voice === "off") {
+            AccessibilityInfo.announceForAccessibility(
+              `${phase}, ${duration} ${duration === 1 ? "second" : "seconds"}`,
+            );
+          }
           playPhaseSounds(phase, duration);
 
           if (isVibrationEnabled) {
@@ -559,6 +582,7 @@ export function useBreathingSession() {
 
   useEffect(() => {
     if (sessionCompleted) {
+      AccessibilityInfo.announceForAccessibility("Session complete");
       const saveSession = async () => {
         await addSession({
           technique: breathingTechnique,

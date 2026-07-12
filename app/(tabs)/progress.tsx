@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { Pill } from "@/constants/Theme";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
 import { StatCard } from "@/components/StatCard";
-import { useTheme } from "expo-router/react-navigation";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { loadStats, type Session } from "@/constants/storage";
 import { getSessionsThisWeek } from "../../utils";
 
 const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function ProgressScreen() {
-  const { colors } = useTheme();
+  const { colors } = useAppTheme();
 
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [completedDays, setCompletedDays] = useState<{ [key: string]: boolean }>({});
@@ -63,12 +65,33 @@ export default function ProgressScreen() {
               key={day}
               style={[
                 styles.dayPill,
-                { backgroundColor: completedDays[day] ? colors.primary : colors.border },
+                {
+                  // completed days share the settings pills' active fill —
+                  // invariant across schemes, so the label is Pill-styled too
+                  backgroundColor: completedDays[day]
+                    ? Pill.activeFill
+                    : colors.inactivePill,
+                },
               ]}
             >
-              <ThemedText type="defaultSemiBold" lightColor={completedDays[day] ? "white" : colors.text}>
+              <ThemedText
+                type="defaultSemiBold"
+                style={{
+                  color: completedDays[day] ? Pill.activeLabel : colors.text,
+                }}
+              >
                 {day.charAt(0)}
               </ThemedText>
+              {completedDays[day] && (
+                <View
+                  style={[
+                    styles.checkBadge,
+                    { backgroundColor: Pill.badgeFill },
+                  ]}
+                >
+                  <Feather name="check" size={10} color={Pill.activeFill} />
+                </View>
+              )}
             </ThemedView>
           ))}
         </ThemedView>
@@ -130,6 +153,18 @@ const styles = StyleSheet.create({
     flex: 0,
     justifyContent: "center",
     alignItems: "center",
+  },
+  // completion badge riding the pill's top-right corner: a check inside its
+  // own small circle (the second, non-colour completion cue after the fill)
+  checkBadge: {
+    position: "absolute",
+    top: -3,
+    right: -3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
   // card padding is 16 app-wide (StatCard, settings rows, summary card)
   card: {

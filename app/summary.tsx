@@ -11,7 +11,7 @@ import {
   loadCustomTechniques,
   type Session,
 } from '@/constants/storage';
-import { useTheme } from "expo-router/react-navigation";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { useRouter } from 'expo-router';
 import { countSessionsThisWeek } from '../utils';
 
@@ -21,7 +21,7 @@ export default function SummaryScreen() {
   const [lastDescription, setLastDescription] = useState("");
   const [totalSessions, setTotalSessions] = useState(0);
   const [sessionsThisWeek, setSessionsThisWeek] = useState(0);
-  const {colors} = useTheme();
+  const {colors} = useAppTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -82,7 +82,7 @@ export default function SummaryScreen() {
       <Pressable
         // navigate pops back to the existing home instead of stacking a new one
         onPress={() => router.navigate("/")}
-        style={[styles.button, { backgroundColor: colors.primary }]}
+        style={[styles.button, { backgroundColor: colors.button }]}
       >
         <ThemedText type="subtitle" style={{ color: 'white' }}>Go Home</ThemedText>
       </Pressable>

@@ -33,7 +33,8 @@ import { GradientBackground } from "@/components/GradientBackground";
 import { VisualizationPreview } from "@/components/VisualizationPreview";
 import { RoundIconButton } from "@/components/RoundIconButton";
 import { useRouter } from "expo-router";
-import { useTheme, useFocusEffect } from "expo-router/react-navigation";
+import { useFocusEffect } from "expo-router/react-navigation";
+import { useAppTheme } from "@/hooks/useAppTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FLOATING_TAB_CLEARANCE, scaleFont } from "@/constants/Theme";
 import { Feather } from "@expo/vector-icons";
@@ -71,7 +72,7 @@ const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const visualizationListRef = useRef<FlatList<Visualization>>(null);
@@ -380,7 +381,7 @@ export default function HomeScreen() {
                   onPress={() => router.push("/technique-editor")}
                 >
                   <View style={[styles.techniqueNameRow, styles.createRow]}>
-                    <Feather name="plus" size={20} color={colors.primary} />
+                    <Feather name="plus" size={20} color={colors.iconAccent} />
                     <ThemedText type="subtitle">Create your own</ThemedText>
                   </View>
                   <ThemedText style={styles.techniqueDescription}>
@@ -500,7 +501,7 @@ export default function HomeScreen() {
 
       <Pressable
         onPress={() => router.push("/breathing")}
-        style={[styles.button, { backgroundColor: colors.primary }]}
+        style={[styles.button, { backgroundColor: colors.button }]}
       >
         <ThemedText type="subtitle" style={{ color: "white" }}>
           Start breathing
