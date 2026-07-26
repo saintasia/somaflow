@@ -1,0 +1,28 @@
+# Dependabot version updates — routine dependency bump PRs.
+# Security updates are separate: the toggle in Settings → Advanced Security.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # one combined PR for minor/patch bumps instead of a PR per package
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Expo SDK pins these as a matched set — upgrade them together via
+    # `npx expo install --fix` when moving SDK versions, not one at a time
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-native"
+      - dependency-name: "@react-native*"
+      - dependency-name: "react-native-*"
