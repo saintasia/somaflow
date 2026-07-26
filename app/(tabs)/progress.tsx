@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { Pill } from "@/constants/Theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Pill, FLOATING_TAB_CLEARANCE } from "@/constants/Theme";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { GradientBackground } from "@/components/GradientBackground";
+import { EdgeFade } from "@/components/EdgeFade";
 import { StatCard } from "@/components/StatCard";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { loadStats, type Session } from "@/constants/storage";
@@ -14,11 +16,23 @@ const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Fri
 
 export default function ProgressScreen() {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
 
   const [sessionHistory, setSessionHistory] = useState<Session[]>([]);
   const [completedDays, setCompletedDays] = useState<{ [key: string]: boolean }>({});
   const [totalSessions, setTotalSessions] = useState(0);
   const [sessionsThisWeek, setSessionsThisWeek] = useState(0);
+
+  // The edge fades only make sense when the list actually scrolls — over a
+  // half-empty region they'd read as a stray band of shading on the
+  // gradient. Compare the list's content height against its viewport.
+  const [listOverflows, setListOverflows] = useState(false);
+  const listViewportHeight = useRef(0);
+  const listContentHeight = useRef(0);
+  const updateListOverflow = () =>
+    setListOverflows(
+      listContentHeight.current > listViewportHeight.current + 1,
+    );
 
   useEffect(() => {
     const loadProgress = async () => {
@@ -49,7 +63,32 @@ export default function ProgressScreen() {
 
   return (
     <GradientBackground>
-      <ThemedView type="scrollable" style={styles.container}>
+      {/* The whole page scrolls as one container, bounded above the floating
+          tab bar — so the transparent tabs always sit on bare gradient — and
+          content dissolves into full-width EdgeFades at the cut-off edges
+          instead of clipping on a hard line */}
+      <View
+        style={[
+          styles.scrollRegion,
+          { marginBottom: insets.bottom + FLOATING_TAB_CLEARANCE },
+        ]}
+      >
+      <ThemedView
+        type="scrollable"
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 24 },
+        ]}
+        onLayout={(event) => {
+          listViewportHeight.current = event.nativeEvent.layout.height;
+          updateListOverflow();
+        }}
+        onContentSizeChange={(_width, height) => {
+          listContentHeight.current = height;
+          updateListOverflow();
+        }}
+      >
       {/* Total Sessions */}
       <StatCard
         label="Sessions so far"
@@ -97,46 +136,59 @@ export default function ProgressScreen() {
         </ThemedView>
       </StatCard>
 
-      {/* Last 20 Sessions — transparent wrappers (a default ThemedView would
-          paint a flat block over the gradient), with enough bottom margin to
-          scroll the last card clear of the floating tab pill */}
-      <ThemedView
-        style={{
-          marginTop: 40,
-          marginBottom: 120,
-          backgroundColor: "transparent",
-        }}
-      >
-        <ThemedText type="subtitle">Previous sessions:</ThemedText>
-        <ThemedView style={{ backgroundColor: "transparent" }}>
-          {sessionHistory.length > 0 ? (
-            sessionHistory.slice(0, 20).map((session, index) => (
-              <ThemedView key={index} style={[styles.card, { backgroundColor: colors.card }]}>
-                <ThemedText type="defaultSemiBold">
-                  {new Date(session.date).toLocaleDateString('en-US', { weekday: 'long' })}: {session.technique} ({session.duration} min)
-                </ThemedText>
-                <ThemedText>
-                  {new Date(session.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                </ThemedText>
-              </ThemedView>
-            ))
-          ) : (
-            <ThemedText>No sessions recorded yet.</ThemedText>
-          )}
-        </ThemedView>
+      {/* Last 20 Sessions — transparent wrappers (a default ThemedView
+          would paint a flat block over the gradient) */}
+      <ThemedText type="subtitle" style={styles.listHeading}>
+        Previous sessions:
+      </ThemedText>
+      <ThemedView style={{ backgroundColor: "transparent" }}>
+        {sessionHistory.length > 0 ? (
+          sessionHistory.slice(0, 20).map((session, index) => (
+            <ThemedView key={index} style={[styles.card, { backgroundColor: colors.card }]}>
+              <ThemedText type="defaultSemiBold">
+                {new Date(session.date).toLocaleDateString('en-US', { weekday: 'long' })}: {session.technique} ({session.duration} min)
+              </ThemedText>
+              <ThemedText>
+                {new Date(session.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </ThemedText>
+            </ThemedView>
+          ))
+        ) : (
+          <ThemedText>No sessions recorded yet.</ThemedText>
+        )}
       </ThemedView>
       </ThemedView>
+      {listOverflows && (
+        <>
+          <EdgeFade edge="top" height={insets.top + 24} />
+          <EdgeFade edge="bottom" height={56} />
+        </>
+      )}
+      </View>
     </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    marginTop: 40,
-    flexDirection: "column",
-    gap: 10,
+  // full-bleed anchor for the ScrollView and the EdgeFades pinned to its
+  // cut-off edges; its bottom margin (set inline with the safe-area inset)
+  // keeps everything clear of the floating tab bar
+  scrollRegion: {
+    flex: 1,
+  },
+  // let the GradientBackground behind the ScrollView show through
+  scroll: {
     backgroundColor: "transparent",
+  },
+  // bottom padding keeps the last card clear of the bottom fade (56) at
+  // rest; top padding (set inline) starts content below the top fade
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: 56,
+    gap: 10,
+  },
+  listHeading: {
+    marginTop: 30,
   },
   pillContainer: {
     backgroundColor: "transparent",
