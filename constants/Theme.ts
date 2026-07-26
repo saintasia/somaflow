@@ -149,5 +149,26 @@ export const ActiveTabHighlight = {
 // behind the tab icons.
 export const TAB_BAR_HEIGHT = 64;
 export const TAB_BAR_BOTTOM_OFFSET = 12;
+// the tab row stops stretching at this width and centers instead — four tabs
+// spanning an iPad (or a wide browser window) put half a screen between them
+export const TAB_BAR_MAX_WIDTH = 480;
 export const FLOATING_TAB_CLEARANCE =
   TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_OFFSET + 12;
+
+// Scroll-edge fades (components/EdgeFade.tsx): a bounded scroll region
+// (the Progress page) dissolves its content into the background gradient at
+// its cut-off edges instead of clipping it on a hard line. Ramps go to full
+// opacity at the very edge so the clip is invisible; stops are the matching
+// BackgroundGradients end colors — first stop for the top edge (at the
+// screen top), last stop for the bottom — and a mid-alpha stop eases the
+// ramp so the transparent end doesn't read as a line.
+export const EdgeFades = {
+  light: {
+    top: ["#F7FFFF", "rgba(247, 255, 255, 0.9)", "rgba(247, 255, 255, 0)"],
+    bottom: ["rgba(217, 240, 243, 0)", "rgba(217, 240, 243, 0.9)", "#D9F0F3"],
+  },
+  dark: {
+    top: ["#15242B", "rgba(21, 36, 43, 0.9)", "rgba(21, 36, 43, 0)"],
+    bottom: ["rgba(36, 65, 77, 0)", "rgba(36, 65, 77, 0.9)", "#24414D"],
+  },
+} as const;

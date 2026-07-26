@@ -44,7 +44,14 @@ import { Feather } from "@expo/vector-icons";
 // Start breathing button — so the screen reads as one aligned column.
 const CONTROL_WIDTH = 320;
 const VISUALIZATION_PAGE_WIDTH = CONTROL_WIDTH;
+// The preview's ceiling. Its section flexes to whatever height is left over,
+// and the preview shrinks to fit it (measured via onLayout) so short screens
+// (Galaxy S8-class) never push the Start button under the tab bar.
 const VISUALIZATION_PREVIEW_SIZE = 280;
+const MIN_VISUALIZATION_PREVIEW_SIZE = 96;
+// what the section holds besides the square preview: the dots row (8px dots
+// + 10px touch padding) and the label line, plus the section's gaps
+const VISUALIZATION_CAPTION_HEIGHT = scaleFont(24) + 36;
 // The minutes carousel pages by this fixed width (the FlatList is exactly one
 // page wide), so swipes, the flanking buttons, and scrollToIndex all agree on
 // offsets. The technique carousel pages by CONTROL_WIDTH: its pages hold the
@@ -82,6 +89,8 @@ export default function HomeScreen() {
   // The session choices made here (visualization, technique, length) persist
   // immediately so the breathing screen reads them straight from storage.
   const [visualization, setVisualization] = useState<Visualization>("circle");
+  // preview edge length, fitted to the flexible section's measured height
+  const [previewSize, setPreviewSize] = useState(VISUALIZATION_PREVIEW_SIZE);
   const [breathingTechnique, setBreathingTechnique] =
     useState<BreathingTechnique>("Resonant");
   const [sessionDuration, setSessionDuration] = useState(5);
@@ -285,7 +294,21 @@ export default function HomeScreen() {
       </ThemedText>
 
       {/* Visualization picker — swipe between session animations */}
-      <ThemedView style={styles.section}>
+      <ThemedView
+        style={styles.section}
+        onLayout={(event) => {
+          const available =
+            event.nativeEvent.layout.height - VISUALIZATION_CAPTION_HEIGHT;
+          setPreviewSize(
+            Math.round(
+              Math.max(
+                MIN_VISUALIZATION_PREVIEW_SIZE,
+                Math.min(VISUALIZATION_PREVIEW_SIZE, available),
+              ),
+            ),
+          );
+        }}
+      >
         <FlatList
           ref={visualizationListRef}
           data={VISUALIZATION_OPTIONS}
@@ -309,10 +332,7 @@ export default function HomeScreen() {
               accessibilityLabel={`${visualizations[item].label} visualisation`}
               accessibilityState={{ selected: item === visualization }}
             >
-              <VisualizationPreview
-                option={item}
-                size={VISUALIZATION_PREVIEW_SIZE}
-              />
+              <VisualizationPreview option={item} size={previewSize} />
             </View>
           )}
         />
@@ -520,8 +540,15 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
+  // flexes to the height the fixed controls below leave over, so the preview
+  // inside can size itself to it; minHeight 0 lets it shrink below content
+  // size on web (react-native-web keeps CSS's min-height: auto)
   section: {
+    flex: 1,
+    minHeight: 0,
+    alignSelf: "stretch",
     alignItems: "center",
+    justifyContent: "center",
     gap: 4,
     backgroundColor: "transparent",
   },

@@ -7,14 +7,18 @@ import {
   ActiveTabHighlight,
   TAB_BAR_HEIGHT,
   TAB_BAR_BOTTOM_OFFSET,
+  TAB_BAR_MAX_WIDTH,
 } from "@/constants/Theme";
 
 // The app's tab bar (passed to <Tabs tabBar>): the tabs sit transparently on
 // the background gradient — no surface, border, or shadow — and the active
 // one is marked by a rounded square (under both the icon and the label) that
-// slides between tabs on a spring. position:absolute means screens extend
+// slides between tabs on a spring. On tablets/wide windows the row caps at
+// TAB_BAR_MAX_WIDTH and centers — four tabs stretched across an iPad put
+// half a screen between them. position:absolute means screens extend
 // behind the bar, so content that can reach the bottom edge pads itself with
-// FLOATING_TAB_CLEARANCE (constants/Theme.ts).
+// FLOATING_TAB_CLEARANCE (constants/Theme.ts) — long lists (Progress) scroll
+// in a bounded region that ends above the bar instead of running under it.
 const HIGHLIGHT_SIZE = 64;
 
 export function FloatingTabBar({
@@ -52,8 +56,14 @@ export function FloatingTabBar({
   }, [barWidth, targetX, highlightX]);
 
   return (
+    // full-width anchor that only centers the (width-capped) tab row — taps
+    // beside it on wide screens fall through to the content behind it
     <View
-      style={[styles.bar, { bottom: insets.bottom + TAB_BAR_BOTTOM_OFFSET }]}
+      style={[styles.anchor, { bottom: insets.bottom + TAB_BAR_BOTTOM_OFFSET }]}
+      pointerEvents="box-none"
+    >
+    <View
+      style={styles.bar}
       onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}
     >
       {barWidth > 0 && (
@@ -107,14 +117,20 @@ export function FloatingTabBar({
         );
       })}
     </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bar: {
+  anchor: {
     position: "absolute",
     left: 0,
     right: 0,
+    alignItems: "center",
+  },
+  bar: {
+    width: "100%",
+    maxWidth: TAB_BAR_MAX_WIDTH,
     height: TAB_BAR_HEIGHT,
     flexDirection: "row",
     backgroundColor: "transparent",

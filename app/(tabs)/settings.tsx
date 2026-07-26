@@ -1,5 +1,6 @@
 import { StyleSheet, Pressable } from "react-native";
 import { useState, useEffect, useRef } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -15,7 +16,7 @@ import {
   saveSetting,
 } from "@/constants/storage";
 import { useThemeMode } from "@/hooks/ThemeModeContext";
-import { Pill } from "@/constants/Theme";
+import { Pill, FLOATING_TAB_CLEARANCE } from "@/constants/Theme";
 
 // Stored option values are lowercase; capitalize them for the segment labels.
 const pillLabel = (option: string) =>
@@ -80,6 +81,7 @@ function SegmentedControl<T extends string>({
 
 export default function SettingsScreen() {
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   // Dark mode lives in context (not local state): setting it re-themes every
   // mounted screen immediately, and the provider persists it.
   const { darkMode, setDarkMode } = useThemeMode();
@@ -112,7 +114,17 @@ export default function SettingsScreen() {
   return (
     <GradientBackground>
       <ThemedView type="scrollable" style={styles.scroll}>
-        <ThemedView style={styles.container}>
+        <ThemedView
+          style={[
+            styles.container,
+            // all tab pages start their content at the same offset (see
+            // Progress) and keep the bottom clear of the floating tab bar
+            {
+              paddingTop: insets.top + 24,
+              paddingBottom: insets.bottom + FLOATING_TAB_CLEARANCE,
+            },
+          ]}
+        >
           {/* Voice guidance — one of three */}
           <ThemedView style={[styles.card, { backgroundColor: colors.card }]}>
             <ThemedText type="subtitle">Voice guidance</ThemedText>
@@ -192,9 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   container: {
-    padding: 20,
-    paddingTop: 30,
-    marginTop: 40,
+    paddingHorizontal: 20,
     flexDirection: "column",
     gap: 10,
     backgroundColor: "transparent",
