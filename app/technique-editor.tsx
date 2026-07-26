@@ -26,7 +26,9 @@ const MAX_PHASE_SECONDS = 20;
 
 // Breathing in and out are what make it a breathing technique — they can't be
 // zero. The holds can (the session loop skips zero-duration phases).
-const PHASES: { key: keyof BreathingPattern; label: string; min: number }[] = [
+// inhale2 (the double-inhale top-up) is built-in-only and has no editor row.
+type EditablePhase = keyof Omit<BreathingPattern, "inhale2">;
+const PHASES: { key: EditablePhase; label: string; min: number }[] = [
   { key: "inhale", label: "Breathe in", min: 1 },
   { key: "hold", label: "Hold in", min: 0 },
   { key: "exhale", label: "Breathe out", min: 1 },
@@ -77,7 +79,7 @@ export default function TechniqueEditorScreen() {
     existingNames.includes(trimmedName) && trimmedName !== editingName;
   const canSave = trimmedName.length > 0 && !nameTaken;
 
-  const adjustPhase = (key: keyof BreathingPattern, delta: number) => {
+  const adjustPhase = (key: EditablePhase, delta: number) => {
     const min = PHASES.find((phase) => phase.key === key)?.min ?? 0;
     setPattern((current) => ({
       ...current,

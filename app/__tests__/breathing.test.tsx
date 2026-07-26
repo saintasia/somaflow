@@ -102,9 +102,9 @@ beforeEach(async () => {
 });
 
 // Which players started this test, by creation index. getPlayers() creates
-// them in a fixed order — 4 music players (in-4, out-4, out-6, out-8) then 6
-// voice players (female in/out/hold, male in/out/hold) — so the index tells
-// the layers apart: 0-3 music, 4-9 voice.
+// them in a fixed order — 5 music players (in-4, out-4, out-6, out-7, out-8)
+// then 6 voice players (female in/out/hold, male in/out/hold) — so the index
+// tells the layers apart: 0-4 music, 5-10 voice.
 const startedPlayers = () => {
   const { __players } = jest.requireMock("expo-audio");
   return __players
@@ -152,7 +152,7 @@ test("voice guidance still plays when background sound is off", async () => {
   fireEvent(getByText(/Start/i), "pressIn");
 
   // only the female "breathe in" voice cue starts — no music player
-  await waitFor(() => expect(startedPlayers()).toEqual([4]));
+  await waitFor(() => expect(startedPlayers()).toEqual([5]));
 });
 
 test("music still plays when voice guidance is off", async () => {
@@ -190,9 +190,9 @@ test("pause freezes clips in place and Continue resumes them", async () => {
   const { getByText } = render(<BreathingScreen />);
   await waitFor(() => expect(getByText(/7 min session/i)).toBeTruthy());
 
-  // start: default settings play the phase's music (0) and voice cue (4)
+  // start: default settings play the phase's music (0) and voice cue (5)
   fireEvent(getByText(/Start/i), "pressIn");
-  await waitFor(() => expect(startedPlayers()).toEqual([0, 4]));
+  await waitFor(() => expect(startedPlayers()).toEqual([0, 5]));
   const music = jest.requireMock("expo-audio").__players[0];
 
   // let the countdown tick once (the button only reads Continue after
@@ -212,6 +212,36 @@ test("pause freezes clips in place and Continue resumes them", async () => {
   fireEvent(getByText(/Continue/i), "pressIn");
   await waitFor(() => expect(music.play.mock.calls.length).toBe(2));
 });
+
+test(
+  "the sigh's top-up inhale replays the breathe-in cue, not the hold cue",
+  async () => {
+    await AsyncStorage.setItem("breathingTechnique", "Cyclic Sighing");
+    await AsyncStorage.setItem("isSoundEnabled", "false");
+    await AsyncStorage.setItem("voiceGuidance", "female");
+    await AsyncStorage.setItem("sessionDuration", "7min");
+
+    const { getByText } = render(<BreathingScreen />);
+    await waitFor(() => expect(getByText(/7 min session/i)).toBeTruthy());
+
+    fireEvent(getByText(/Start/i), "pressIn");
+
+    // first inhale: only the female "breathe in" cue starts (sound is off)
+    await waitFor(() => expect(startedPlayers()).toEqual([5]));
+    const { __players } = jest.requireMock("expo-audio");
+
+    // ~4s in, the 2s top-up phase replays the same clip: startClip cancels
+    // the first inhale's pending park timer and rewinds. Phase kinds are
+    // carried on the pattern steps, so the unfamiliar label must not fall
+    // back to the "hold" cue.
+    await waitFor(() => expect(getByText("In again")).toBeTruthy(), {
+      timeout: 7000,
+    });
+    await waitFor(() => expect(__players[5].play.mock.calls.length).toBe(2));
+    expect(__players[7].play).not.toHaveBeenCalled(); // the female "hold" cue
+  },
+  15000,
+);
 
 test("opens the editor for a custom technique from the session screen", async () => {
   await AsyncStorage.setItem(

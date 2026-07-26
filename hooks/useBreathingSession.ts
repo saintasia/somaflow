@@ -6,6 +6,7 @@ import {
   Vibration,
 } from "react-native";
 import { useFocusEffect } from "expo-router/react-navigation";
+import { useKeepAwake } from "expo-keep-awake";
 import type { AppLottieViewHandle } from "@/components/AppLottieView";
 import * as Haptics from "expo-haptics";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
@@ -37,14 +38,23 @@ const inhaleMusic: Record<number, number> = {
 const exhaleMusic: Record<number, number> = {
   4: require("@/assets/sounds/music-breathe-out-4.mp3"),
   6: require("@/assets/sounds/music-breathe-out-6.mp3"),
+  // tempo-stretched from the 8s file (ffmpeg atempo=8/7) for Cyclic
+  // Sighing's 7s exhale — replace if the swell is ever re-authored
+  7: require("@/assets/sounds/music-breathe-out-7.mp3"),
   8: require("@/assets/sounds/music-breathe-out-8.mp3"),
 };
+
+// What a phase *is* for sounds and haptics — carried on each pattern step so
+// cues never re-derive it from the display label (a new label would silently
+// misclassify as a hold). Both inhales of a double-inhale technique are "in":
+// the top-up replays the same "Breathe in" voice cue.
+type PhaseKind = "in" | "out" | "hold";
 
 // Spoken guidance cues per phase, for each selectable voice. Both hold
 // phases share the one "hold" clip.
 const voiceSounds: Record<
   Exclude<VoiceOption, "off">,
-  Record<"in" | "out" | "hold", number>
+  Record<PhaseKind, number>
 > = {
   female: {
     in: require("@/assets/sounds/voice-breathe-in-female.mp3"),
@@ -170,10 +180,18 @@ export const preloadBreathingAudio = (): void => {
 // per-phase countdown), animates the overall progress bar, and persists the
 // session on completion. `app/breathing.tsx` is the thin view over this hook.
 export function useBreathingSession() {
+  // The screen must not sleep mid-session: display-off suspends the JS loop,
+  // audio, and haptics (standalone builds only — Expo Go masks this by
+  // keeping the screen awake in development). Released on unmount.
+  useKeepAwake();
   const router = useRouter();
   const lottieRef = useRef<AppLottieViewHandle>(null);
   const playersRef = useRef<Record<string, AudioPlayer> | null>(null);
-  const parkTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  // pending park timers keyed by player, so reusing a player in back-to-back
+  // phases can find and cancel the previous phase's timer (see startClip)
+  const parkTimersRef = useRef<Map<AudioPlayer, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
   const hapticTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const progress = useRef(new Animated.Value(0)).current;
 
@@ -290,16 +308,36 @@ export function useBreathingSession() {
   // clip sits at its end and a pause-on-finish handler would kill the next
   // play() (https://github.com/expo/expo/issues/34301).
   const parkAfterPhase = (player: AudioPlayer, duration: number) => {
+    const existing = parkTimersRef.current.get(player);
+    if (existing) clearTimeout(existing);
     const parkTimer = setTimeout(
       () => {
-        parkTimersRef.current.delete(parkTimer);
+        parkTimersRef.current.delete(player);
         if (!playersRef.current) return; // screen unmounted, player removed
         player.pause();
         player.seekTo(0);
       },
       duration * 1000 + 250,
     );
-    parkTimersRef.current.add(parkTimer);
+    parkTimersRef.current.set(player, parkTimer);
+  };
+
+  // Start a phase clip. Players are normally parked at 0 by the previous
+  // phase's park timer, so play() starts instantly — but a player reused in
+  // back-to-back phases (the double inhale replays the "Breathe in" cue one
+  // phase after the first inhale used it) is still sitting at its clip's end
+  // with that timer pending: cancel the timer so it can't cut the new
+  // playback short, and rewind before playing.
+  const startClip = (player: AudioPlayer, duration: number) => {
+    const pendingPark = parkTimersRef.current.get(player);
+    if (pendingPark) {
+      clearTimeout(pendingPark);
+      parkTimersRef.current.delete(player);
+      player.pause();
+      player.seekTo(0);
+    }
+    player.play();
+    parkAfterPhase(player, duration);
   };
 
   // Start the current phase's audio. The two layers are gated independently —
@@ -309,36 +347,29 @@ export function useBreathingSession() {
   // ducked under the voice. The previous phase's clips are deliberately
   // not stopped here: they're timed to end with their phase, and cutting any
   // leftover tail is an audible click.
-  const playPhaseSounds = (phase: string, duration: number) => {
-    const phaseKey =
-      phase === "Breathe in" ? "in" : phase === "Breathe out" ? "out" : "hold";
-
+  const playPhaseSounds = (kind: PhaseKind, duration: number) => {
     const voicePlayer =
-      voice === "off"
-        ? null
-        : playersRef.current?.[`voice-${voice}-${phaseKey}`];
+      voice === "off" ? null : playersRef.current?.[`voice-${voice}-${kind}`];
     const musicPlayer =
-      !isSoundEnabled || phaseKey === "hold"
+      !isSoundEnabled || kind === "hold"
         ? null
-        : playersRef.current?.[`music-${phaseKey}-${duration}`];
+        : playersRef.current?.[`music-${kind}-${duration}`];
 
     if (musicPlayer) {
       musicPlayer.volume = voicePlayer ? DUCKED_MUSIC_VOLUME : 1;
-      musicPlayer.play(); // preloaded and parked at 0 — starts immediately
-      parkAfterPhase(musicPlayer, duration);
+      startClip(musicPlayer, duration);
     }
 
     if (voicePlayer) {
-      voicePlayer.play();
-      parkAfterPhase(voicePlayer, duration);
+      startClip(voicePlayer, duration);
     }
   };
 
   // The haptic cue for a phase change: one steady buzz on Android, a ripple
   // of light impacts on iOS. stopHaptics() cuts either short if the session
   // pauses or unmounts mid-cue.
-  const playPhaseHaptics = (phase: string) => {
-    const isBreathe = phase === "Breathe in" || phase === "Breathe out";
+  const playPhaseHaptics = (kind: PhaseKind) => {
+    const isBreathe = kind !== "hold";
 
     if (Platform.OS === "android") {
       const ms = isBreathe ? BREATHE_VIBRATION_MS : HOLD_VIBRATION_MS;
@@ -455,25 +486,43 @@ export function useBreathingSession() {
     let elapsedTimeLocal = elapsedTime; // maintain paused time
 
     const { firstFrame, lastFrame } = selectedVisualization;
+    const { inhale, inhale2 = 0, hold, exhale, hold2 } = selectedPattern.pattern;
+    // A double-inhale technique (physiological sigh) splits the animation's
+    // single inhale sweep between its two inhale phases in proportion to
+    // their durations, so the circle grows at one steady rate through the
+    // top-up and reaches full exactly as it ends. Without an inhale2 the
+    // split point IS the last frame and the first inhale sweeps everything.
+    const inhaleSplitFrame =
+      firstFrame + ((lastFrame - firstFrame) * inhale) / (inhale + inhale2);
     const pattern = [
       {
         phase: "Breathe in",
-        duration: selectedPattern.pattern.inhale,
-        animationRange: [firstFrame, lastFrame],
+        kind: "in" as const,
+        duration: inhale,
+        animationRange: [firstFrame, inhaleSplitFrame],
+      },
+      {
+        phase: "In again",
+        kind: "in" as const,
+        duration: inhale2,
+        animationRange: [inhaleSplitFrame, lastFrame],
       },
       {
         phase: "Hold in",
-        duration: selectedPattern.pattern.hold || 0,
+        kind: "hold" as const,
+        duration: hold || 0,
         animationRange: [lastFrame, lastFrame],
       },
       {
         phase: "Breathe out",
-        duration: selectedPattern.pattern.exhale,
+        kind: "out" as const,
+        duration: exhale,
         animationRange: [lastFrame, firstFrame],
       },
       {
         phase: "Hold out",
-        duration: selectedPattern.pattern.hold2 || 0,
+        kind: "hold" as const,
+        duration: hold2 || 0,
         animationRange: [firstFrame, firstFrame],
       },
     ].filter((step) => step.duration > 0);
@@ -498,7 +547,7 @@ export function useBreathingSession() {
       while (cycleActive && elapsedTimeLocal < totalSessionTime) {
         if (!isRunning) return; // pause loop when session is paused
 
-        const { phase, duration, animationRange } = pattern[i];
+        const { phase, kind, duration, animationRange } = pattern[i];
 
         // resume the current phase mid-way, or start it fresh
         const resuming = phaseRemainingRef.current > 0;
@@ -513,8 +562,15 @@ export function useBreathingSession() {
         // picks up where it left off. The sound and vibration only fire when
         // the phase first begins, so resuming doesn't restart the audio.
         // (The actual play() call happens in an effect — see below.)
-        setLottieSpeed(selectedVisualization.nativeSeconds / duration);
         const [fromFrame, toFrame] = animationRange;
+        // a partial sweep (the split double inhale) plays proportionally
+        // slower than a full one over the same seconds; zero-span hold
+        // segments keep the full-sweep speed (their frozen frame ignores it)
+        const sweepFraction =
+          Math.abs(toFrame - fromFrame) / (lastFrame - firstFrame) || 1;
+        setLottieSpeed(
+          (selectedVisualization.nativeSeconds * sweepFraction) / duration,
+        );
         const elapsedFraction = (duration - remaining) / duration;
         setLottieSegment({
           from: fromFrame + (toFrame - fromFrame) * elapsedFraction,
@@ -533,10 +589,10 @@ export function useBreathingSession() {
               `${phase}, ${duration} ${duration === 1 ? "second" : "seconds"}`,
             );
           }
-          playPhaseSounds(phase, duration);
+          playPhaseSounds(kind, duration);
 
           if (isVibrationEnabled) {
-            playPhaseHaptics(phase);
+            playPhaseHaptics(kind);
           }
         }
 

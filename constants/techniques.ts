@@ -5,6 +5,9 @@
 // technique must exist (e.g. to run a session).
 export type BreathingPattern = {
   inhale: number;
+  // optional short "top-up" inhale straight after the first (the
+  // physiological sigh's double inhale); omitted or 0 = single inhale
+  inhale2?: number;
   hold: number;
   exhale: number;
   hold2: number;
@@ -28,6 +31,15 @@ export const techniques: Record<string, TechniqueDef> = {
     description: "Helps reduce stress, enhance focus, and promote calmness",
     pattern:{ inhale: 4, hold: 4, exhale: 4, hold2: 4 },
   },
+  // The study's own name for the practice (built on the "physiological
+  // sigh" reflex). Balban et al. 2023 prescribes no seconds — participants
+  // paced themselves. 4-2-7 is this app's pacing, honoring the study's
+  // constraints: top-up shorter than the first inhale, exhale longer than
+  // both inhales combined.
+  "Cyclic Sighing": {
+    description: "Two inhales and a long sigh out, for fast stress relief",
+    pattern:{ inhale: 4, inhale2: 2, hold: 0, exhale: 7, hold2: 0 },
+  },
 }
 
 // Any technique name — one of the built-ins above or a user-created one.
@@ -39,6 +51,7 @@ export const describeTechnique = ({ description, pattern }: TechniqueDef): strin
   description ||
   [
     `${pattern.inhale}s in`,
+    pattern.inhale2 ? `${pattern.inhale2}s in again` : null,
     pattern.hold ? `${pattern.hold}s hold` : null,
     `${pattern.exhale}s out`,
     pattern.hold2 ? `${pattern.hold2}s hold` : null,
