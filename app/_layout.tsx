@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemeModeProvider } from '@/hooks/ThemeModeContext';
 import { Feather } from '@expo/vector-icons';
-import { Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors'
 import { preloadBreathingAudio } from '@/hooks/useBreathingSession';
 
@@ -76,6 +76,10 @@ function RootNavigator() {
         screenOptions={{
           headerShown: true,
           headerTitleStyle: { fontSize: 18, fontFamily: 'InclusiveSansMedium' },
+          // Android's default push/pop transition is nearly imperceptible,
+          // so screen changes read as a hard cut — a quick cross-fade gives
+          // them some motion. iOS keeps its native slide.
+          ...(Platform.OS === 'android' ? { animation: 'fade' as const } : null),
         }}
       >
         {/* Home, Summary and Settings - Uses Bottom Tabs */}

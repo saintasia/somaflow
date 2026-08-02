@@ -11,6 +11,11 @@ export default function TabLayout() {
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false, // no top bar on pages with footer nav
+        // switching tabs shifts the screens slightly in the travel
+        // direction — the same page metaphor as the tab bar's drag gesture
+        // and the Breathe tab's carousels (tabs otherwise swap with no
+        // animation at all, which reads especially abrupt on Android)
+        animation: 'shift',
       }}>
       <Tabs.Screen
         name="index"
