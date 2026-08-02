@@ -143,15 +143,27 @@ export const ActiveTabHighlight = {
   dark: "rgba(8, 18, 24, 0.45)",
 } as const;
 
+// The Breathe tab's aligned column: the visualization carousel, the
+// technique/minutes rows (buttons pinned to its edges), and the Start
+// breathing button all share this width — and the tab bar row matches it.
+export const CONTROL_WIDTH = 320;
+
 // Metrics of the floating (transparent) tab bar ((tabs)/_layout.tsx). Tab
 // screens with bottom-anchored or scrolling content pad their bottom edge by
 // FLOATING_TAB_CLEARANCE + the safe-area bottom inset so nothing sits
-// behind the tab icons.
+// behind the tab icons. The bar sits a small offset above the safe-area
+// inset — keep the inset in the sum so it never enters the gesture zone.
 export const TAB_BAR_HEIGHT = 64;
-export const TAB_BAR_BOTTOM_OFFSET = 12;
-// the tab row stops stretching at this width and centers instead — four tabs
-// spanning an iPad (or a wide browser window) put half a screen between them
-export const TAB_BAR_MAX_WIDTH = 480;
+export const TAB_BAR_BOTTOM_OFFSET = 6;
+// The tab row stops stretching at this width and centers instead — four
+// tabs spanning an iPad (or a wide browser window) would put half a screen
+// between them. Sized to *read* as wide as the Breathe tab's Start button:
+// the bar is transparent and each tab centers ~50pt of visible icon/label
+// inside its quarter-width cell, so the geometry must run a little past
+// CONTROL_WIDTH for the outer tabs to land flush with the button's ends —
+// capping at exactly CONTROL_WIDTH made the row look narrower than the
+// button.
+export const TAB_BAR_MAX_WIDTH = CONTROL_WIDTH + 40;
 export const FLOATING_TAB_CLEARANCE =
   TAB_BAR_HEIGHT + TAB_BAR_BOTTOM_OFFSET + 12;
 
