@@ -26,3 +26,11 @@ updates:
       - dependency-name: "react-native"
       - dependency-name: "@react-native*"
       - dependency-name: "react-native-*"
+      # Majors only move safely when the Expo SDK does (Aug 2026: babel 8 /
+      # jest 30 / RNTL 14 / ts 7 all broke against SDK 57 and were reverted)
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # 0.x "minors" are breaking (lottie-react-native peers on ^0.13);
+      # 0.13→0.19 slipped through the minor-and-patch group and broke web
+      - dependency-name: "@lottiefiles/dotlottie-react"
+        update-types: ["version-update:semver-minor"]
