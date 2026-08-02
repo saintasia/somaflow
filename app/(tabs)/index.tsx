@@ -36,18 +36,23 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "expo-router/react-navigation";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { FLOATING_TAB_CLEARANCE, scaleFont } from "@/constants/Theme";
+import {
+  CONTROL_WIDTH,
+  FLOATING_TAB_CLEARANCE,
+  scaleFont,
+} from "@/constants/Theme";
 import { Feather } from "@expo/vector-icons";
 
-// Every control shares this width — the visualization carousel, the technique
-// and minutes rows (whose buttons pin to its left/right edges), and the
-// Start breathing button — so the screen reads as one aligned column.
-const CONTROL_WIDTH = 320;
+// CONTROL_WIDTH (constants/Theme.ts) is the aligned column every control
+// shares — the visualization carousel, the technique and minutes rows (whose
+// buttons pin to its left/right edges), and the Start breathing button — and
+// the floating tab bar's row matches it too.
 const VISUALIZATION_PAGE_WIDTH = CONTROL_WIDTH;
-// The preview's ceiling. Its section flexes to whatever height is left over,
-// and the preview shrinks to fit it (measured via onLayout) so short screens
-// (Galaxy S8-class) never push the Start button under the tab bar.
-const VISUALIZATION_PREVIEW_SIZE = 280;
+// The preview's ceiling. Its section flexes to whatever height is left over
+// (up to the section's maxHeight), and the preview shrinks to fit it
+// (measured via onLayout) so short screens (Galaxy S8-class) never push the
+// Start button under the tab bar.
+const VISUALIZATION_PREVIEW_SIZE = 240;
 const MIN_VISUALIZATION_PREVIEW_SIZE = 96;
 // what the section holds besides the square preview: the dots row (8px dots
 // + 10px touch padding) and the label line, plus the section's gaps
@@ -289,6 +294,9 @@ export default function HomeScreen() {
         { paddingBottom: insets.bottom + FLOATING_TAB_CLEARANCE },
       ]}
     >
+      {/* a little air above the title, for balance — flex-based, so roomy
+          screens get up to its cap and short screens give it up first */}
+      <View style={styles.topSpacer} />
       <ThemedText type="title" style={{ marginTop: insets.top + 16 }}>
         SomaFlow
       </ThemedText>
@@ -528,6 +536,10 @@ export default function HomeScreen() {
         </ThemedText>
         <Feather name="play" size={24} color="white" />
       </Pressable>
+
+      {/* soaks up the leftover height the visualization section no longer
+          takes, so the Start button rides above the tab bar on tall screens */}
+      <View style={styles.bottomSpacer} />
     </GradientBackground>
   );
 }
@@ -540,12 +552,26 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
-  // flexes to the height the fixed controls below leave over, so the preview
-  // inside can size itself to it; minHeight 0 lets it shrink below content
-  // size on web (react-native-web keeps CSS's min-height: auto)
-  section: {
+  // The column's slack is shared by three flexible regions — 1 above the
+  // title : 8 here : 3 under the Start button — so the imagery wins when
+  // space is tight and the margins only open up on roomier screens.
+  topSpacer: {
     flex: 1,
+    // "a little" air even on tall screens — the leftovers go below instead
+    maxHeight: 40,
+    // cancel the container's 12px gap so, on small screens, an empty spacer
+    // truly costs nothing
+    marginBottom: -12,
+  },
+  // Flexes to the height the fixed controls below leave over, so the preview
+  // inside can size itself to it; minHeight 0 lets it shrink below content
+  // size on web (react-native-web keeps CSS's min-height: auto). It stops
+  // growing once the preview reaches its ceiling — the rest of the slack
+  // falls to the spacers instead of inflating the imagery.
+  section: {
+    flex: 8,
     minHeight: 0,
+    maxHeight: VISUALIZATION_PREVIEW_SIZE + VISUALIZATION_CAPTION_HEIGHT,
     alignSelf: "stretch",
     alignItems: "center",
     justifyContent: "center",
@@ -640,6 +666,9 @@ const styles = StyleSheet.create({
   durationText: {
     fontSize: scaleFont(24),
     lineHeight: scaleFont(28),
+  },
+  bottomSpacer: {
+    flex: 3,
   },
   button: {
     width: CONTROL_WIDTH,
