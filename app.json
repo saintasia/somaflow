@@ -19,7 +19,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#366F80"
       },
-      "package": "com.saintasia.somaflow",
+      "package": "app.somaflow",
       "permissions": [
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.VIBRATE"
