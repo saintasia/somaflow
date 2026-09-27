@@ -23,6 +23,9 @@ updates:
       - dependency-name: "@expo/*"
       - dependency-name: "react"
       - dependency-name: "react-dom"
+      # peers on react's exact version (e.g. 19.2.8 wants react ^19.2.8) —
+      # only moves when react does, i.e. with the SDK
+      - dependency-name: "react-test-renderer"
       - dependency-name: "react-native"
       - dependency-name: "@react-native*"
       - dependency-name: "react-native-*"
