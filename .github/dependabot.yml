@@ -37,3 +37,7 @@ updates:
       # 0.13→0.19 slipped through the minor-and-patch group and broke web
       - dependency-name: "@lottiefiles/dotlottie-react"
         update-types: ["version-update:semver-minor"]
+      # native module pinned by the SDK (bundledNativeModules ~7.3.8);
+      # Expo Go ships its native side, so minors past the pin can mismatch
+      - dependency-name: "lottie-react-native"
+        update-types: ["version-update:semver-minor"]
