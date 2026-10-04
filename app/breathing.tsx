@@ -147,7 +147,9 @@ export default function BreathingScreen() {
                 outputRange: ["0%", "100%"],
               }),
             },
-            { backgroundColor: colors.primary },
+            // button, not primary: primary lightens in dark mode, which made
+            // the bar a visibly different blue than the Start/Pause button
+            { backgroundColor: colors.button },
           ]}
         />
       </ThemedView>
