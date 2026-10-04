@@ -532,25 +532,42 @@ export function useBreathingSession() {
 
     let cycleActive = true;
 
-    // Progress bar animation
+    // Sessions end only on a cycle boundary (see the check in the loop
+    // below), so the real session length is the nominal one rounded up to
+    // whole cycles — most patterns don't divide the minutes evenly (4-7-8's
+    // 19s cycle never does).
+    const cycleSeconds = pattern.reduce((sum, step) => sum + step.duration, 0);
+    const actualSessionTime =
+      Math.ceil(totalSessionTime / cycleSeconds) * cycleSeconds;
+
+    // Progress bar animation, spanning the cycle-rounded length so the bar
+    // reaches full as the final cycle ends rather than sitting at 100% while
+    // it finishes. Completion is owned by the loop below — this animation
+    // runs on the real clock, which drifts ahead of the loop's 1s ticks, so
+    // a completion here would cut the last cycle short.
     Animated.timing(progress, {
       toValue: 1,
-      duration: (totalSessionTime - elapsedTimeLocal) * 1000, // adjust for pause
+      duration: (actualSessionTime - elapsedTimeLocal) * 1000, // adjust for pause
       useNativeDriver: false,
-    }).start(() => {
-      if (elapsedTimeLocal >= totalSessionTime) {
-        setSessionCompleted(true); // mark session as completed if time lapsed
-      }
-    });
+    }).start();
 
     const runBreathingCycle = async () => {
-      while (cycleActive && elapsedTimeLocal < totalSessionTime) {
+      while (cycleActive) {
         if (!isRunning) return; // pause loop when session is paused
-
-        const { phase, kind, duration, animationRange } = pattern[i];
 
         // resume the current phase mid-way, or start it fresh
         const resuming = phaseRemainingRef.current > 0;
+
+        // The session ends only here, between cycles: a new cycle doesn't
+        // start once the session time has lapsed, but a cycle that had time
+        // to start always runs all its phases — never cut one off mid-breath
+        // (an interrupted exhale reads as the app breaking).
+        if (i === 0 && !resuming && elapsedTimeLocal >= totalSessionTime) {
+          setSessionCompleted(true);
+          return;
+        }
+
+        const { phase, kind, duration, animationRange } = pattern[i];
         let remaining = resuming ? phaseRemainingRef.current : duration;
 
         setCurrentPhase(phase);
@@ -607,11 +624,6 @@ export function useBreathingSession() {
           elapsedTimeLocal += 1;
           setElapsedTime(elapsedTimeLocal);
           phaseRemainingRef.current = remaining;
-
-          if (elapsedTimeLocal >= totalSessionTime) {
-            setSessionCompleted(true);
-            return;
-          }
         }
 
         i = (i + 1) % pattern.length;

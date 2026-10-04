@@ -129,7 +129,9 @@ export default function BreathingScreen() {
         accessibilityValue={{
           min: 0,
           max: sessionDuration * 60,
-          now: elapsedTime,
+          // the final cycle may run past the nominal time (sessions end on
+          // cycle boundaries) — don't report beyond the scale's max
+          now: Math.min(elapsedTime, sessionDuration * 60),
         }}
         style={[
           styles.progressBarContainer,

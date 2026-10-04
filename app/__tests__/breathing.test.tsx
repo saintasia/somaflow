@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { render, fireEvent, waitFor } from "@testing-library/react-native";
+import { act, render, fireEvent, waitFor } from "@testing-library/react-native";
 import BreathingScreen from "@/app/breathing";
 import { Animated, Platform, Vibration } from "react-native";
 import * as Haptics from "expo-haptics";
@@ -21,21 +21,25 @@ jest.mock("expo-router/react-navigation", () => ({
   useFocusEffect: jest.fn(),
 }));
 
-// mock navigation, keeping push reachable so the edit flow can assert on it
+// mock navigation, keeping push/replace reachable so the edit flow and
+// session completion can assert on them
 jest.mock("expo-router", () => {
   const push = jest.fn();
+  const replace = jest.fn();
   return {
     useRouter: () => ({
       push,
-      replace: jest.fn(),
+      replace,
       navigate: jest.fn(),
       back: jest.fn(),
       canGoBack: () => true,
     }),
     __push: push,
+    __replace: replace,
   };
 });
-const { __push: mockPush } = jest.requireMock("expo-router");
+const { __push: mockPush, __replace: mockReplace } =
+  jest.requireMock("expo-router");
 
 // mock haptics
 jest.mock("expo-haptics", () => ({
@@ -266,6 +270,51 @@ test("opens the editor for a custom technique from the session screen", async ()
     params: { name: "My Flow" },
   });
 });
+
+test(
+  "a cycle that had time to start finishes before the session ends",
+  async () => {
+    // Box Breathing's 16s cycle doesn't divide a 1-minute session: the 4th
+    // cycle starts at 48s, so the nominal 60s lapses mid-cycle. The session
+    // must run that cycle to its end (64s) instead of cutting off mid-breath,
+    // and must not start a 5th cycle.
+    await AsyncStorage.setItem("breathingTechnique", "Box Breathing");
+    await AsyncStorage.setItem("sessionDuration", "1min");
+
+    jest.useFakeTimers();
+    try {
+      const { getByText } = render(<BreathingScreen />);
+      await act(async () => {}); // settle the async settings load
+      getByText(/1 min session/i);
+
+      fireEvent(getByText(/Start/i), "pressIn");
+      await act(async () => {}); // let the session loop start
+
+      // drive the loop's 1s countdown ticks one at a time
+      const tick = async (seconds: number) => {
+        for (let s = 0; s < seconds; s++) {
+          await act(async () => {
+            jest.advanceTimersByTime(1000);
+          });
+        }
+      };
+
+      // 60s in, the nominal time is up mid-cycle — the session must continue
+      await tick(60);
+      expect(mockReplace).not.toHaveBeenCalled();
+      getByText(/Pause/i); // still running
+
+      // ...until the cycle completes at 64s, then it ends exactly once
+      await tick(4);
+      await act(async () => {}); // flush the async session save
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith("/summary");
+    } finally {
+      jest.useRealTimers();
+    }
+  },
+  15000,
+);
 
 test("keeps Android vibration patterns above the 1s silent-drop threshold", async () => {
   // Android 13+ silently drops attribute-less vibration patterns totalling
