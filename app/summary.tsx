@@ -51,10 +51,20 @@ export default function SummaryScreen() {
   return (
     <GradientBackground>
       {/* the header is transparent (title + back chip float on the
-          gradient), so the content starts below it */}
+          gradient), so the content starts below it. All layout lives on
+          contentContainerStyle: padding on the ScrollView frame itself
+          clips the scrollable extent, cutting off the bottom button. */}
       <ThemedView
         type="scrollable"
-        style={[styles.container, { paddingTop: insets.top + 72 }]}
+        style={styles.container}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: insets.top + 72,
+            paddingBottom: insets.bottom + 40,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
       >
       <Image source={require("@/assets/images/party-popper.png")} style={{ width: 97, height: 100, alignSelf: 'center' }} />
       <ThemedView style={[styles.card, { backgroundColor: colors.card }]}>
@@ -93,10 +103,10 @@ export default function SummaryScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    flexDirection: 'column',
-    gap: 10,
     backgroundColor: 'transparent',
+  },
+  content: {
+    padding: 20,
   },
   // card padding is 16 app-wide (StatCard, settings rows, progress cards)
   card: {
@@ -114,8 +124,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 100,
     marginTop: 20,
-    marginBottom: 80,
-    fontSize: 30,
     alignSelf: 'center',
   },
 })
