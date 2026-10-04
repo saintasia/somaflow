@@ -21,7 +21,7 @@ test("should display progress history if available", async () => {
   const { getByText } = render(<ProgressScreen />);
 
   await waitFor(() => {
-    expect(getByText(/previous sessions:/i)).toBeTruthy();
+    expect(getByText(/recent sessions:/i)).toBeTruthy();
     expect(getByText(/February 20, 2024/i)).toBeTruthy();
     expect(getByText(/resonant/i)).toBeTruthy();
     expect(getByText(/5 min/i)).toBeTruthy();

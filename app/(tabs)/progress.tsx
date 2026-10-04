@@ -139,7 +139,7 @@ export default function ProgressScreen() {
       {/* Last 20 Sessions — transparent wrappers (a default ThemedView
           would paint a flat block over the gradient) */}
       <ThemedText type="subtitle" style={styles.listHeading}>
-        Previous sessions:
+        Recent sessions:
       </ThemedText>
       <ThemedView style={{ backgroundColor: "transparent" }}>
         {sessionHistory.length > 0 ? (
