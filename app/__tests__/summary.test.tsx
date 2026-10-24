@@ -23,7 +23,7 @@ beforeEach(async () => {
 });
 
 test("should display completed session details", async () => {
-  const { getByText } = render(<SummaryScreen />);
+  const { getByText } = await render(<SummaryScreen />);
   await waitFor(() => {
     expect(getByText(/completed the/i)).toBeTruthy();
     expect(getByText(/resonant/i)).toBeTruthy();
@@ -32,7 +32,7 @@ test("should display completed session details", async () => {
 });
 
 test("should display total sessions", async () => {
-  const { getByText } = render(<SummaryScreen />);
+  const { getByText } = await render(<SummaryScreen />);
   await waitFor(() => {
     expect(getByText(/Sessions so far/i)).toBeTruthy();
     expect(getByText(/8/i)).toBeTruthy();

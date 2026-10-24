@@ -13,40 +13,40 @@ jest.mock("expo-router/react-navigation", () => ({
 }));
 
 test("should save voice guidance when selected", async () => {
-  const { getByText } = render(
+  const { getByText } = await render(
     <ThemeProvider value={LightTheme}>
       <SettingsScreen />
     </ThemeProvider>
   );
 
   const maleButton = getByText("Male");
-  fireEvent.press(maleButton);
+  await fireEvent.press(maleButton);
 
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("voiceGuidance", "male");
 });
 
 test("should save sound setting when toggled", async () => {
-  const { getByTestId } = render(
+  const { getByTestId } = await render(
     <ThemeProvider value={LightTheme}>
       <SettingsScreen />
     </ThemeProvider>
   );
 
   const soundToggle = getByTestId("soundToggle");
-  fireEvent.press(soundToggle);
+  await fireEvent.press(soundToggle);
 
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("isSoundEnabled", "false");
 });
 
 test("should save vibration setting when toggled", async () => {
-  const { getByTestId } = render(
+  const { getByTestId } = await render(
     <ThemeProvider value={LightTheme}>
       <SettingsScreen />
     </ThemeProvider>
   );
 
   const vibrationToggle = getByTestId("vibrationToggle");
-  fireEvent.press(vibrationToggle);
+  await fireEvent.press(vibrationToggle);
 
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("isVibrationEnabled", "false");
 });

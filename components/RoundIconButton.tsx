@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { Pressable, StyleSheet } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/Feather";
 import { useAppTheme } from "@/hooks/useAppTheme";
 
 // The round icon button used by the Breathe tab's pickers — the < > technique

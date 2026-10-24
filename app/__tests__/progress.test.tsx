@@ -18,7 +18,7 @@ jest.mock("expo-router/react-navigation", () => ({
 }));
 
 test("should display progress history if available", async () => {
-  const { getByText } = render(<ProgressScreen />);
+  const { getByText } = await render(<ProgressScreen />);
 
   await waitFor(() => {
     expect(getByText(/recent sessions:/i)).toBeTruthy();
@@ -29,7 +29,7 @@ test("should display progress history if available", async () => {
 });
 
 test("should display days of the week", async () => {
-  const { getByText, getAllByText } = render(<ProgressScreen />);
+  const { getByText, getAllByText } = await render(<ProgressScreen />);
 
   await waitFor(() => {
     expect(getByText("M")).toBeTruthy();
@@ -41,7 +41,7 @@ test("should display days of the week", async () => {
 });
 
 test("should display total sessions", async () => {
-  const { getByText } = render(<ProgressScreen />);
+  const { getByText } = await render(<ProgressScreen />);
 
   await waitFor(() => {
     expect(getByText(/sessions so far/i)).toBeTruthy();

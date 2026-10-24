@@ -21,8 +21,8 @@ const renderScreen = () =>
     </ThemeProvider>
   );
 
-test("renders a row for every website link", () => {
-  const { getByText } = renderScreen();
+test("renders a row for every website link", async () => {
+  const { getByText } = await renderScreen();
 
   expect(getByText("About SomaFlow")).toBeTruthy();
   expect(getByText("The science")).toBeTruthy();
@@ -35,10 +35,10 @@ test.each([
   ["The science", "https://soma-flow.app/research/"],
   ["Feedback & help", "https://soma-flow.app/feedback/"],
   ["Privacy", "https://soma-flow.app/privacy/"],
-])("pressing %s opens %s", (label, url) => {
-  const { getByText } = renderScreen();
+])("pressing %s opens %s", async (label, url) => {
+  const { getByText } = await renderScreen();
 
-  fireEvent.press(getByText(label));
+  await fireEvent.press(getByText(label));
 
   expect(openURL).toHaveBeenCalledWith(url);
 });

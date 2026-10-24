@@ -21,3 +21,10 @@ jest.mock("react-native-safe-area-context", () => {
   const mock = require("react-native-safe-area-context/jest/mock");
   return mock.default ?? mock;
 });
+
+// Icons are decorative to every test. The real Feather loads its font
+// through expo-asset on mount, which under jest-expo 58 throws ("Module …
+// is missing from the asset registry") — render nothing instead.
+jest.mock("@expo/vector-icons", () => ({
+  Feather: () => null,
+}));
