@@ -1,6 +1,6 @@
 import { StyleSheet, Pressable, Linking } from "react-native";
 import type { ComponentProps } from "react";
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/Feather";
 import Constants from "expo-constants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";

@@ -30,11 +30,6 @@ const {
   __params: mockParams,
 } = jest.requireMock("expo-router");
 
-// mock icons
-jest.mock("@expo/vector-icons", () => ({
-  Feather: () => null,
-}));
-
 beforeEach(async () => {
   jest.clearAllMocks();
   await AsyncStorage.clear();
@@ -42,14 +37,14 @@ beforeEach(async () => {
 });
 
 test("creates a technique, selects it and closes", async () => {
-  const { getByLabelText, getByText } = render(<TechniqueEditorScreen />);
+  const { getByLabelText, getByText } = await render(<TechniqueEditorScreen />);
 
-  fireEvent.changeText(getByLabelText("Technique name"), "Calm");
+  await fireEvent.changeText(getByLabelText("Technique name"), "Calm");
   // default inhale is 4s; one bump makes the pattern distinct
-  fireEvent.press(getByLabelText("Increase Breathe in"));
+  await fireEvent.press(getByLabelText("Increase Breathe in"));
   expect(getByText("5s")).toBeTruthy();
 
-  fireEvent.press(getByText("Save technique"));
+  await fireEvent.press(getByText("Save technique"));
 
   await waitFor(() => {
     expect(AsyncStorage.setItem).toHaveBeenCalledWith(
@@ -66,14 +61,14 @@ test("creates a technique, selects it and closes", async () => {
 });
 
 test("rejects a name that clashes with an existing technique", async () => {
-  const { getByLabelText, getByText } = render(<TechniqueEditorScreen />);
+  const { getByLabelText, getByText } = await render(<TechniqueEditorScreen />);
 
-  fireEvent.changeText(getByLabelText("Technique name"), "Resonant");
+  await fireEvent.changeText(getByLabelText("Technique name"), "Resonant");
   expect(
     getByText(/a technique with this name already exists/i)
   ).toBeTruthy();
 
-  fireEvent.press(getByText("Save technique"));
+  await fireEvent.press(getByText("Save technique"));
 
   expect(AsyncStorage.setItem).not.toHaveBeenCalledWith(
     "customTechniques",
@@ -94,7 +89,7 @@ test("prefills an existing custom technique in edit mode", async () => {
   );
   mockParams.name = "My Flow";
 
-  const { getByDisplayValue, getByLabelText } = render(
+  const { getByDisplayValue, getByLabelText } = await render(
     <TechniqueEditorScreen />
   );
 
@@ -119,12 +114,12 @@ test("deletes a custom technique after confirmation and resets the selection", a
   mockParams.name = "My Flow";
   const alertSpy = jest.spyOn(Alert, "alert");
 
-  const { getByDisplayValue, getByLabelText } = render(
+  const { getByDisplayValue, getByLabelText } = await render(
     <TechniqueEditorScreen />
   );
   await waitFor(() => expect(getByDisplayValue("My Flow")).toBeTruthy());
 
-  fireEvent.press(getByLabelText("Delete My Flow"));
+  await fireEvent.press(getByLabelText("Delete My Flow"));
 
   // confirm via the alert's destructive button
   const buttons = alertSpy.mock.calls[0][2];

@@ -87,11 +87,6 @@ jest.mock("expo-audio", () => {
   };
 });
 
-// mock icons
-jest.mock("@expo/vector-icons", () => ({
-  Feather: () => null,
-}));
-
 // reset spy call counts (not implementations) so each test's haptics/sound
 // assertions start from zero, and clear any storage seeded by a prior test
 beforeEach(async () => {
@@ -119,25 +114,25 @@ const startedPlayers = () => {
 };
 
 test("should start and pause session correctly", async () => {
-  const { getByText } = render(<BreathingScreen />);
+  const { getByText } = await render(<BreathingScreen />);
   const startButton = getByText(/Start/i);
 
-  fireEvent(startButton, "pressIn");
+  await fireEvent(startButton, "pressIn");
   await waitFor(() =>
     expect(getByText(/Pause/i)).toBeTruthy()
   ); // button should change to "Pause"
   
-  fireEvent(startButton, "pressIn");
+  await fireEvent(startButton, "pressIn");
   await waitFor(() =>
     expect(getByText(/Start/i)).toBeTruthy()
   ); // button should change to "Start"
 });
 
 test("should trigger a haptic cue when a phase starts if enabled", async () => {
-  const { getByText } = render(<BreathingScreen />);
+  const { getByText } = await render(<BreathingScreen />);
   const startButton = getByText(/Start/i);
 
-  fireEvent(startButton, "pressIn");
+  await fireEvent(startButton, "pressIn");
   // the first pulse of the phase's ripple fires immediately
   await waitFor(() => expect(Haptics.impactAsync).toHaveBeenCalled());
 });
@@ -149,11 +144,11 @@ test("voice guidance still plays when background sound is off", async () => {
   await AsyncStorage.setItem("voiceGuidance", "female");
   await AsyncStorage.setItem("sessionDuration", "7min");
 
-  const { getByText } = render(<BreathingScreen />);
+  const { getByText } = await render(<BreathingScreen />);
   // the seeded settings are applied once the duration renders
   await waitFor(() => expect(getByText(/7 min session/i)).toBeTruthy());
 
-  fireEvent(getByText(/Start/i), "pressIn");
+  await fireEvent(getByText(/Start/i), "pressIn");
 
   // only the female "breathe in" voice cue starts — no music player
   await waitFor(() => expect(startedPlayers()).toEqual([5]));
@@ -164,10 +159,10 @@ test("music still plays when voice guidance is off", async () => {
   await AsyncStorage.setItem("voiceGuidance", "off");
   await AsyncStorage.setItem("sessionDuration", "7min");
 
-  const { getByText } = render(<BreathingScreen />);
+  const { getByText } = await render(<BreathingScreen />);
   await waitFor(() => expect(getByText(/7 min session/i)).toBeTruthy());
 
-  fireEvent(getByText(/Start/i), "pressIn");
+  await fireEvent(getByText(/Start/i), "pressIn");
 
   // only the 4s "breathe in" music swell starts — no voice player
   await waitFor(() => expect(startedPlayers()).toEqual([0]));
@@ -178,10 +173,10 @@ test("plays nothing when background sound and voice are both off", async () => {
   await AsyncStorage.setItem("voiceGuidance", "off");
   await AsyncStorage.setItem("sessionDuration", "7min");
 
-  const { getByText } = render(<BreathingScreen />);
+  const { getByText } = await render(<BreathingScreen />);
   await waitFor(() => expect(getByText(/7 min session/i)).toBeTruthy());
 
-  fireEvent(getByText(/Start/i), "pressIn");
+  await fireEvent(getByText(/Start/i), "pressIn");
 
   // the phase has started once its haptic cue fires — no player may start
   await waitFor(() => expect(Haptics.impactAsync).toHaveBeenCalled());
@@ -191,11 +186,11 @@ test("plays nothing when background sound and voice are both off", async () => {
 test("pause freezes clips in place and Continue resumes them", async () => {
   await AsyncStorage.setItem("sessionDuration", "7min");
 
-  const { getByText } = render(<BreathingScreen />);
+  const { getByText } = await render(<BreathingScreen />);
   await waitFor(() => expect(getByText(/7 min session/i)).toBeTruthy());
 
   // start: default settings play the phase's music (0) and voice cue (5)
-  fireEvent(getByText(/Start/i), "pressIn");
+  await fireEvent(getByText(/Start/i), "pressIn");
   await waitFor(() => expect(startedPlayers()).toEqual([0, 5]));
   const music = jest.requireMock("expo-audio").__players[0];
 
@@ -207,13 +202,13 @@ test("pause freezes clips in place and Continue resumes them", async () => {
     () => expect(getByText("3", { includeHiddenElements: true })).toBeTruthy(),
     { timeout: 3000 },
   );
-  fireEvent(getByText(/Pause/i), "pressIn");
+  await fireEvent(getByText(/Pause/i), "pressIn");
   await waitFor(() => expect(getByText(/Continue/i)).toBeTruthy());
   expect(music.pause).toHaveBeenCalled();
   expect(music.seekTo).not.toHaveBeenCalled();
 
   // continue: the frozen clip picks back up (second play call)
-  fireEvent(getByText(/Continue/i), "pressIn");
+  await fireEvent(getByText(/Continue/i), "pressIn");
   await waitFor(() => expect(music.play.mock.calls.length).toBe(2));
 });
 
@@ -225,10 +220,10 @@ test(
     await AsyncStorage.setItem("voiceGuidance", "female");
     await AsyncStorage.setItem("sessionDuration", "7min");
 
-    const { getByText } = render(<BreathingScreen />);
+    const { getByText } = await render(<BreathingScreen />);
     await waitFor(() => expect(getByText(/7 min session/i)).toBeTruthy());
 
-    fireEvent(getByText(/Start/i), "pressIn");
+    await fireEvent(getByText(/Start/i), "pressIn");
 
     // first inhale: only the female "breathe in" cue starts (sound is off)
     await waitFor(() => expect(startedPlayers()).toEqual([5]));
@@ -259,11 +254,11 @@ test("opens the editor for a custom technique from the session screen", async ()
   );
   await AsyncStorage.setItem("breathingTechnique", "My Flow");
 
-  const { getByText, getByLabelText } = render(<BreathingScreen />);
+  const { getByText, getByLabelText } = await render(<BreathingScreen />);
   // the technique card resolves the custom name and offers editing
   await waitFor(() => expect(getByText("My Flow")).toBeTruthy());
 
-  fireEvent(getByLabelText("Edit My Flow"), "pressIn");
+  await fireEvent(getByLabelText("Edit My Flow"), "pressIn");
 
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/technique-editor",
@@ -283,11 +278,11 @@ test(
 
     jest.useFakeTimers();
     try {
-      const { getByText } = render(<BreathingScreen />);
+      const { getByText } = await render(<BreathingScreen />);
       await act(async () => {}); // settle the async settings load
       getByText(/1 min session/i);
 
-      fireEvent(getByText(/Start/i), "pressIn");
+      await fireEvent(getByText(/Start/i), "pressIn");
       await act(async () => {}); // let the session loop start
 
       // drive the loop's 1s countdown ticks one at a time
@@ -323,8 +318,8 @@ test("keeps Android vibration patterns above the 1s silent-drop threshold", asyn
   Platform.OS = "android";
   const vibrateSpy = jest.spyOn(Vibration, "vibrate");
   try {
-    const { getByText } = render(<BreathingScreen />);
-    fireEvent(getByText(/Start/i), "pressIn");
+    const { getByText } = await render(<BreathingScreen />);
+    await fireEvent(getByText(/Start/i), "pressIn");
 
     await waitFor(() => expect(vibrateSpy).toHaveBeenCalled());
     const pattern = vibrateSpy.mock.calls[0][0] as number[];

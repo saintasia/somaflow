@@ -43,7 +43,8 @@ const HIGHLIGHT_SPRING = {
 export function FloatingTabBar({
   state,
   descriptors,
-  navigation,
+  emitter,
+  navigateToTab,
   insets,
 }: BottomTabBarProps) {
   const colorScheme = useColorScheme() ?? "light";
@@ -78,14 +79,14 @@ export function FloatingTabBar({
   // responder is created once (lazy useState) and reads the live layout and
   // selection from a ref mirrored each render, the codebase's pattern for
   // stable gesture/viewability handlers.
-  const dragContextRef = useRef({ barWidth, state, navigation });
+  const dragContextRef = useRef({ barWidth, state, emitter, navigateToTab });
   useEffect(() => {
-    dragContextRef.current = { barWidth, state, navigation };
+    dragContextRef.current = { barWidth, state, emitter, navigateToTab };
   });
   const dragXRef = useRef(0);
   const [panResponder] = useState(() => {
     const settle = (cancelled: boolean) => {
-      const { barWidth, state, navigation } = dragContextRef.current;
+      const { barWidth, state, emitter, navigateToTab } = dragContextRef.current;
       if (!barWidth) return;
       const itemWidth = barWidth / state.routes.length;
       const cellUnderFinger = Math.floor(
@@ -102,13 +103,13 @@ export function FloatingTabBar({
       }).start();
       if (cancelled || target === state.index) return;
       const route = state.routes[target];
-      const event = navigation.emit({
+      const event = emitter.emit({
         type: "tabPress",
         target: route.key,
         canPreventDefault: true,
       });
       if (!event.defaultPrevented) {
-        navigation.navigate(route.name, route.params);
+        navigateToTab(route.key);
       }
     };
 
@@ -176,13 +177,13 @@ export function FloatingTabBar({
           : Colors[colorScheme].tabIconDefault;
 
         const onPress = () => {
-          const event = navigation.emit({
+          const event = emitter.emit({
             type: "tabPress",
             target: route.key,
             canPreventDefault: true,
           });
           if (!focused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
+            navigateToTab(route.key);
           }
         };
 
@@ -196,7 +197,7 @@ export function FloatingTabBar({
             }
             onPress={onPress}
             onLongPress={() =>
-              navigation.emit({ type: "tabLongPress", target: route.key })
+              emitter.emit({ type: "tabLongPress", target: route.key })
             }
             style={styles.item}
           >

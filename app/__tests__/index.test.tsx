@@ -24,11 +24,6 @@ const { __push: mockPush } = jest.requireMock("expo-router");
 // VisualizationPreview's imperative play() calls are safely skipped)
 jest.mock("lottie-react-native", () => () => null);
 
-// mock icons
-jest.mock("@expo/vector-icons", () => ({
-  Feather: () => null,
-}));
-
 beforeEach(async () => {
   jest.clearAllMocks();
   await AsyncStorage.clear();
@@ -39,7 +34,7 @@ test("restores the saved choices when the tab gains focus", async () => {
   await AsyncStorage.setItem("sessionDuration", "12min");
   await AsyncStorage.setItem("breathingVisualization", "mandala");
 
-  const { getByText } = render(<HomeScreen />);
+  const { getByText } = await render(<HomeScreen />);
 
   await waitFor(() => {
     expect(getByText("12 min")).toBeTruthy();
@@ -47,10 +42,10 @@ test("restores the saved choices when the tab gains focus", async () => {
   });
 });
 
-test("selects a visualization from its dot and saves it", () => {
-  const { getByLabelText } = render(<HomeScreen />);
+test("selects a visualization from its dot and saves it", async () => {
+  const { getByLabelText } = await render(<HomeScreen />);
 
-  fireEvent.press(getByLabelText("Select Mandala"));
+  await fireEvent.press(getByLabelText("Select Mandala"));
 
   expect(AsyncStorage.setItem).toHaveBeenCalledWith(
     "breathingVisualization",
@@ -58,10 +53,10 @@ test("selects a visualization from its dot and saves it", () => {
   );
 });
 
-test("steps to the next technique with the chevron and saves it", () => {
-  const { getByLabelText } = render(<HomeScreen />);
+test("steps to the next technique with the chevron and saves it", async () => {
+  const { getByLabelText } = await render(<HomeScreen />);
 
-  fireEvent.press(getByLabelText("Next technique"));
+  await fireEvent.press(getByLabelText("Next technique"));
 
   expect(AsyncStorage.setItem).toHaveBeenCalledWith(
     "breathingTechnique",
@@ -69,28 +64,28 @@ test("steps to the next technique with the chevron and saves it", () => {
   );
 });
 
-test("does not step back past the first technique", () => {
-  const { getByLabelText } = render(<HomeScreen />);
+test("does not step back past the first technique", async () => {
+  const { getByLabelText } = await render(<HomeScreen />);
 
   // default selection is Resonant, the first technique
-  fireEvent.press(getByLabelText("Previous technique"));
+  await fireEvent.press(getByLabelText("Previous technique"));
 
   expect(AsyncStorage.setItem).not.toHaveBeenCalled();
 });
 
-test("increases session length by one minute and saves it", () => {
-  const { getByLabelText, getByText } = render(<HomeScreen />);
+test("increases session length by one minute and saves it", async () => {
+  const { getByLabelText, getByText } = await render(<HomeScreen />);
 
-  fireEvent.press(getByLabelText("Increase session length"));
+  await fireEvent.press(getByLabelText("Increase session length"));
 
   expect(getByText("6 min")).toBeTruthy();
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("sessionDuration", "6min");
 });
 
-test("decreases session length by one minute and saves it", () => {
-  const { getByLabelText } = render(<HomeScreen />);
+test("decreases session length by one minute and saves it", async () => {
+  const { getByLabelText } = await render(<HomeScreen />);
 
-  fireEvent.press(getByLabelText("Decrease session length"));
+  await fireEvent.press(getByLabelText("Decrease session length"));
 
   // the minutes are a windowed FlatList and jest fires no layout/scroll
   // events, so pages below the initial "5 min" window never render — assert
@@ -98,10 +93,10 @@ test("decreases session length by one minute and saves it", () => {
   expect(AsyncStorage.setItem).toHaveBeenCalledWith("sessionDuration", "4min");
 });
 
-test("opens the technique editor from the carousel's create page", () => {
-  const { getByLabelText } = render(<HomeScreen />);
+test("opens the technique editor from the carousel's create page", async () => {
+  const { getByLabelText } = await render(<HomeScreen />);
 
-  fireEvent.press(getByLabelText("Create your own technique"));
+  await fireEvent.press(getByLabelText("Create your own technique"));
 
   expect(mockPush).toHaveBeenCalledWith("/technique-editor");
 });
@@ -118,27 +113,27 @@ test("shows a saved custom technique and lets it be edited", async () => {
   );
   await AsyncStorage.setItem("breathingTechnique", "My Flow");
 
-  const { getByText, getByLabelText } = render(<HomeScreen />);
+  const { getByText, getByLabelText } = await render(<HomeScreen />);
 
   // the custom page renders, described by its pace (it has no description)
   await waitFor(() => expect(getByText("My Flow")).toBeTruthy());
   expect(getByText("5s in · 2s hold · 7s out")).toBeTruthy();
 
   // and, being user-created, tapping its page opens it in the editor
-  fireEvent.press(getByLabelText("My Flow. Opens the technique editor"));
+  await fireEvent.press(getByLabelText("My Flow. Opens the technique editor"));
   expect(mockPush).toHaveBeenCalledWith({
     pathname: "/technique-editor",
     params: { name: "My Flow" },
   });
 });
 
-test("does not decrease session length below the minimum", () => {
-  const { getByLabelText } = render(<HomeScreen />);
+test("does not decrease session length below the minimum", async () => {
+  const { getByLabelText } = await render(<HomeScreen />);
   const decrease = getByLabelText("Decrease session length");
 
   // default is 5 min; six presses pass the 1 min floor
   for (let i = 0; i < 6; i++) {
-    fireEvent.press(decrease);
+    await fireEvent.press(decrease);
   }
 
   // the saves stop at the floor ("1 min" page text isn't rendered — see the

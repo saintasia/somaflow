@@ -8,7 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { ThemeModeProvider } from '@/hooks/ThemeModeContext';
-import { Feather } from '@expo/vector-icons';
+import { Feather } from '@/components/Feather';
 import { Platform, Pressable, StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors'
 import { preloadBreathingAudio } from '@/hooks/useBreathingSession';

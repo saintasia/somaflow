@@ -3,7 +3,7 @@ import {
   Pressable,
   FlatList,
   View,
-  type ViewToken,
+  type ListViewToken,
 } from "react-native";
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
@@ -41,7 +41,7 @@ import {
   FLOATING_TAB_CLEARANCE,
   scaleFont,
 } from "@/constants/Theme";
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/Feather";
 
 // CONTROL_WIDTH (constants/Theme.ts) is the aligned column every control
 // shares — the visualization carousel, the technique and minutes rows (whose
@@ -81,6 +81,9 @@ type TechniquePage =
 // carousel would visibly snap but never save on web), and screen-reader
 // initiated scrolls (TalkBack/VoiceOver) don't emit them either.
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
+// RN 0.88's ListViewToken (formerly ViewToken<T>) types `item` as any —
+// re-attach each carousel's item type
+type ViewToken<T> = Omit<ListViewToken, "item"> & { item: T };
 
 export default function HomeScreen() {
   const router = useRouter();

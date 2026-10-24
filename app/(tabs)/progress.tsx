@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { Feather } from "@/components/Feather";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Pill, FLOATING_TAB_CLEARANCE } from "@/constants/Theme";
 import { ThemedText } from "@/components/ThemedText";
