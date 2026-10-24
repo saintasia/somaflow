@@ -50,10 +50,15 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     gap: 10,
   },
+  // the value pins to the top (level with the label) rather than centering:
+  // descriptions wrap to different line counts, so centered values landed
+  // at different heights from card to card. The gap keeps a long
+  // description from crowding the number on narrow screens.
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+    gap: 16,
   },
   textColumn: {
     gap: 10,

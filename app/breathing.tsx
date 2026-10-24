@@ -54,6 +54,10 @@ export default function BreathingScreen() {
             style={{
               position: "absolute",
               top: 0,
+              // title's lineHeight equals its fontSize, which leaves Android
+              // no room for descenders — the "g" of "In again" (Cyclic
+              // Sighing) was clipped on Galaxy devices
+              lineHeight: scaleFont(42),
               // primary reads as blue against the dark gradient — use the
               // near-white text color there
               color: dark ? colors.text : colors.primary,
