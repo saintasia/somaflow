@@ -423,7 +423,12 @@ export default function HomeScreen() {
                 <View style={styles.techniqueNameRow}>
                   <ThemedText type="subtitle">{item.name}</ThemedText>
                 </View>
-                <ThemedText style={styles.techniqueDescription}>
+                <ThemedText
+                  style={styles.techniqueDescription}
+                  // Android: even out the two lines instead of filling the
+                  // first edge to edge (iOS/web ignore it)
+                  textBreakStrategy="balanced"
+                >
                   {describeTechnique(techniqueDef(item.name))}
                 </ThemedText>
               </>
@@ -645,9 +650,11 @@ const styles = StyleSheet.create({
   },
   // minHeight (not height, which clipped longer descriptions) keeps the
   // layout steady across techniques while letting long text show fully —
-  // sized for two lines of default text, and scaled with it
+  // sized for two lines of default text, and scaled with it. The side
+  // padding keeps the text measure narrower than the full control column —
+  // edge-to-edge lines read as too wide next to the name above.
   techniqueDescription: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 20,
     textAlign: "center",
     minHeight: scaleFont(52),
   },
